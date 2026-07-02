@@ -240,6 +240,15 @@ body {
   display: block;
 }
 
+.cm-reverse-synctex-highlight {
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-findMatchHighlightBackground) 75%,
+    transparent
+  );
+  outline: 1px solid var(--vscode-editor-findMatchHighlightBorder);
+}
+
 .latex-figure-dialog {
   display: grid;
   gap: 12px;

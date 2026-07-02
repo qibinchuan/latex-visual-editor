@@ -8,8 +8,19 @@ import {
   indentWithTab,
 } from '@codemirror/commands'
 import { search, searchKeymap } from '@codemirror/search'
-import { Compartment, EditorSelection, EditorState } from '@codemirror/state'
-import { EditorView, keymap } from '@codemirror/view'
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  StateEffect,
+  StateField,
+} from '@codemirror/state'
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  keymap,
+} from '@codemirror/view'
 import { foldGutter, foldKeymap, syntaxTree } from '@codemirror/language'
 import type {
   HostToWebviewMessage,
@@ -89,6 +100,33 @@ let metadata: WorkspaceMetadata = {
   environments: [],
 }
 let useOverleafKeybindings = true
+// Match LaTeX Workshop's reverse-SyncTeX editor decoration lifetime.
+const reverseSyncHighlightDuration = 500
+const setReverseSyncHighlight = StateEffect.define<{
+  from: number
+  to: number
+}>()
+const clearReverseSyncHighlight = StateEffect.define<void>()
+const reverseSyncHighlight = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(value, transaction) {
+    let decorations = value.map(transaction.changes)
+    for (const effect of transaction.effects) {
+      if (effect.is(setReverseSyncHighlight)) {
+        decorations = Decoration.set([
+          Decoration.mark({
+            class: 'cm-reverse-synctex-highlight',
+          }).range(effect.value.from, effect.value.to),
+        ])
+      } else if (effect.is(clearReverseSyncHighlight)) {
+        decorations = Decoration.none
+      }
+    }
+    return decorations
+  },
+  provide: field => EditorView.decorations.from(field),
+})
+let reverseSyncHighlightTimeout: number | undefined
 
 window.addEventListener('focus', () => {
   vscode.postMessage({ type: 'focusChanged', focused: true })
@@ -171,6 +209,12 @@ window.addEventListener('message', event => {
           },
           viewState: measureViewState(view),
         })
+      } else if (
+        message.command === 'revealSelection' &&
+        message.selection &&
+        view
+      ) {
+        revealReverseSyncSelection(message.selection)
       }
       break
   }
@@ -202,6 +246,7 @@ function createEditor(
       visualLineNumbers,
       foldGutter({ openText: '▾', closedText: '▸' }),
       highlightCurrentLineNumber,
+      reverseSyncHighlight,
       colorTheme.of(EditorView.darkTheme.of(isDarkTheme())),
       EditorView.contentAttributes.of({ 'aria-label': 'Visual Editor editing' }),
       keymap.of([
@@ -275,6 +320,35 @@ function createEditor(
     })
   }
   view.focus()
+}
+
+function revealReverseSyncSelection(selection: {
+  anchor: number
+  head: number
+}): void {
+  if (!view) return
+  const documentLength = view.state.doc.length
+  const anchor = Math.min(Math.max(0, selection.anchor), documentLength)
+  const head = Math.min(Math.max(0, selection.head), documentLength)
+  const line = view.state.doc.lineAt(head)
+  view.dispatch({
+    selection: EditorSelection.single(anchor, head),
+    effects: [
+      EditorView.scrollIntoView(head, { y: 'center' }),
+      setReverseSyncHighlight.of({
+        from: line.from,
+        to: Math.max(line.from, line.to),
+      }),
+    ],
+  })
+  view.focus()
+  if (reverseSyncHighlightTimeout !== undefined) {
+    window.clearTimeout(reverseSyncHighlightTimeout)
+  }
+  reverseSyncHighlightTimeout = window.setTimeout(() => {
+    view?.dispatch({ effects: clearReverseSyncHighlight.of(undefined) })
+    reverseSyncHighlightTimeout = undefined
+  }, reverseSyncHighlightDuration)
 }
 
 function restoreVisualReopen(anchor: number, scrollTop?: number): void {

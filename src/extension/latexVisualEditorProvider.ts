@@ -32,6 +32,10 @@ const MAX_LISTING_PREVIEW_BYTES = 256 * 1024
 export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvider {
   private readonly metadataIndexes = new Map<string, WorkspaceMetadataIndex>()
   private readonly panels = new Set<vscode.WebviewPanel>()
+  private readonly panelDocuments = new Map<
+    vscode.WebviewPanel,
+    vscode.TextDocument
+  >()
   private readonly pendingStateSnapshots = new Map<string, () => void>()
 
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -74,6 +78,7 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
     }
     panel.webview.html = this.createWebviewHtml(panel.webview)
     this.panels.add(panel)
+    this.panelDocuments.set(panel, document)
 
     const post = (message: HostToWebviewMessage) => panel.webview.postMessage(message)
     let editQueue = Promise.resolve()
@@ -203,6 +208,7 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
     if (panel.active) setActiveVisualEditor(panel, document)
     panel.onDidDispose(() => {
       this.panels.delete(panel)
+      this.panelDocuments.delete(panel)
       documentListener.dispose()
       metadataListener.dispose()
       configurationListener.dispose()
@@ -211,6 +217,47 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
       setVisualEditorFocus(panel, false)
       if (getActiveVisualEditor() === panel) setActiveVisualEditor(undefined)
     })
+  }
+
+  /**
+   * Returns the existing visual panel for a document, if one is open.
+   */
+  getPanel(uri: vscode.Uri): vscode.WebviewPanel | undefined {
+    for (const [panel, document] of this.panelDocuments) {
+      if (
+        document.uri.toString() === uri.toString() ||
+        (document.uri.scheme === 'file' &&
+          uri.scheme === 'file' &&
+          (process.platform === 'win32'
+            ? document.uri.fsPath.toLowerCase() === uri.fsPath.toLowerCase()
+            : document.uri.fsPath === uri.fsPath))
+      ) {
+        return panel
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * Focuses an existing visual editor and reveals a host-document selection.
+   */
+  async revealSelection(
+    uri: vscode.Uri,
+    selection: { anchor: number; head: number }
+  ): Promise<boolean> {
+    const panel = this.getPanel(uri)
+    if (!panel) return false
+    const document = this.panelDocuments.get(panel)
+    if (!document) return false
+
+    storeEditorSelection(uri, selection)
+    panel.reveal(panel.viewColumn, false)
+    await panel.webview.postMessage({
+      type: 'command',
+      command: 'revealSelection',
+      selection: mapSelectionToWebview(document.getText(), selection),
+    } satisfies HostToWebviewMessage)
+    return true
   }
 
   /** Flushes selection and viewport state from the active webview. */

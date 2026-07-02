@@ -120,6 +120,18 @@
         "key": "ctrl+i",
         "mac": "cmd+i",
         "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
+      },
+      {
+        "command": "latexVisualEditor.workshopBuild",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "activeCustomEditorId == latexVisualEditor.editor && !config.latex-workshop.bind.altKeymap.enabled && !virtualWorkspace"
+      },
+      {
+        "command": "latexVisualEditor.workshopSyncTeX",
+        "key": "ctrl+alt+j",
+        "mac": "cmd+alt+j",
+        "when": "activeCustomEditorId == latexVisualEditor.editor && !config.latex-workshop.bind.altKeymap.enabled"
       }
     ],
     "menus": {
@@ -184,6 +196,7 @@
     "test": "vitest run",
     "test:e2e:shortcuts": "node scripts/test-keyboard-shortcuts.mjs",
     "test:e2e:shortcuts:disabled": "node scripts/test-keyboard-shortcuts.mjs --disabled",
+    "test:e2e:latex-workshop-shortcuts": "node scripts/test-latex-workshop-shortcuts.mjs",
     "check": "npm run typecheck && npm test",
     "vscode:prepublish": "npm run check && npm run build",
     "package": "vsce package --no-dependencies"
@@ -212,6 +225,7 @@
     "@vscode/vsce": "^3.3.2",
     "esbuild": "^0.28.1",
     "jsdom": "^29.1.1",
+    "jszip": "^3.10.1",
     "playwright": "^1.61.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"

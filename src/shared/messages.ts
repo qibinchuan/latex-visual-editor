@@ -35,8 +35,13 @@ export type HostToWebviewMessage =
   | { type: 'overleafKeybindingsChanged'; enabled: boolean }
   | {
       type: 'command'
-      command: 'insertFigure' | 'insertTable' | 'syncState'
+      command:
+        | 'insertFigure'
+        | 'insertTable'
+        | 'syncState'
+        | 'revealSelection'
       requestId?: string
+      selection?: { anchor: number; head: number }
     }
   | {
       type: 'resourceResolved'

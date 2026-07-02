@@ -17,6 +17,11 @@ import {
   storeViewState,
 } from './extension/editorViewState'
 import {
+  buildWithLatexWorkshop,
+  installReverseSyncTeXHandler,
+  syncTeXWithLatexWorkshop,
+} from './extension/latexWorkshop'
+import {
   LatexVisualEditorProvider,
   VISUAL_EDITOR_VIEW_TYPE,
 } from './extension/latexVisualEditorProvider'
@@ -33,6 +38,25 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     LatexVisualEditorProvider.register(context, visualEditorProvider)
   )
+  void installReverseSyncTeXHandler(async (record, data) => {
+    const uri = vscode.Uri.file(record.input)
+    const visualPanel = visualEditorProvider.getPanel(uri)
+    if (!visualPanel) return false
+
+    const document = await vscode.workspace.openTextDocument(uri)
+    const [line, character] = locateReverseSyncPosition(
+      document,
+      record.line - 1,
+      record.column,
+      data.textBeforeSelection,
+      data.textAfterSelection
+    )
+    const position = new vscode.Position(line, character)
+    return visualEditorProvider.revealSelection(uri, {
+      anchor: document.offsetAt(position),
+      head: document.offsetAt(position),
+    })
+  }).then(disposable => context.subscriptions.push(disposable))
 
   const refreshWebviews = () => {
     const count = visualEditorProvider.refreshWebviews()
@@ -106,6 +130,26 @@ export function activate(context: vscode.ExtensionContext): void {
       'latexVisualEditor.refreshWebviews',
       refreshWebviews
     ),
+    vscode.commands.registerCommand(
+      'latexVisualEditor.workshopBuild',
+      async () => {
+        const document = getActiveVisualEditorDocument()
+        if (!document) return
+        await visualEditorProvider.syncActiveEditorState(document.uri)
+        await buildWithLatexWorkshop(document)
+      }
+    ),
+    vscode.commands.registerCommand(
+      'latexVisualEditor.workshopSyncTeX',
+      async () => {
+        const document = getActiveVisualEditorDocument()
+        if (!document) return
+        await visualEditorProvider.syncActiveEditorState(document.uri)
+        const selection = getStoredEditorSelection(document.uri)
+        const position = document.positionAt(selection?.head ?? 0)
+        await syncTeXWithLatexWorkshop(document, position)
+      }
+    ),
     vscode.commands.registerCommand('latexVisualEditor.viewPdf', async () => {
       const document = getActiveVisualEditorDocument()
       if (!document) return
@@ -161,6 +205,33 @@ export function activate(context: vscode.ExtensionContext): void {
       ).finally(() => reopening.delete(key))
     })
   )
+}
+
+function locateReverseSyncPosition(
+  document: vscode.TextDocument,
+  requestedLine: number,
+  requestedColumn: number,
+  before: string,
+  after: string
+): [number, number] {
+  const line = Math.min(Math.max(0, requestedLine), document.lineCount - 1)
+  if (requestedColumn > 0) return [line, requestedColumn]
+
+  for (const candidate of [line, line - 1, line + 1]) {
+    if (candidate < 0 || candidate >= document.lineCount) continue
+    const text = document.lineAt(candidate).text
+    const beforeText = before.slice(-Math.min(20, before.length))
+    const afterText = after.slice(0, Math.min(20, after.length))
+    if (beforeText) {
+      const index = text.indexOf(beforeText)
+      if (index >= 0) return [candidate, index + beforeText.length]
+    }
+    if (afterText) {
+      const index = text.indexOf(afterText)
+      if (index >= 0) return [candidate, index]
+    }
+  }
+  return [line, 0]
 }
 
 /**
