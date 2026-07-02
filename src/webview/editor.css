@@ -226,6 +226,20 @@ body {
   background: rgba(0, 0, 0, 0.45);
 }
 
+.latex-image-drop-cursor {
+  position: fixed;
+  z-index: 1000;
+  display: none;
+  width: 2px;
+  min-height: 1em;
+  background: var(--vscode-editorCursor-foreground);
+  pointer-events: none;
+}
+
+.latex-image-drop-cursor.visible {
+  display: block;
+}
+
 .latex-figure-dialog {
   display: grid;
   gap: 12px;

@@ -635,9 +635,10 @@ async function uploadImage(file: File): Promise<string> {
 /**
  * Inserts an Overleaf-style figure environment.
  */
-function insertBlock(latex: string): void {
+function insertBlock(latex: string, position?: number): void {
   if (!view) return
-  const line = view.state.doc.lineAt(view.state.selection.main.head)
+  const anchor = Math.min(position ?? view.state.selection.main.head, view.state.doc.length)
+  const line = view.state.doc.lineAt(anchor)
   const from = line.text.trim() ? line.to : line.from
   const prefix = line.text.trim() ? '\n\n' : ''
   view.dispatch({
@@ -653,20 +654,67 @@ function insertBlock(latex: string): void {
  */
 function installImageDrop(): void {
   if (!view) return
-  const handle = async (files: FileList | null) => {
+  const dropCursor = document.createElement('div')
+  dropCursor.className = 'latex-image-drop-cursor'
+  document.body.append(dropCursor)
+
+  const hideDropCursor = () => {
+    dropCursor.classList.remove('visible')
+  }
+  const dropPosition = (event: DragEvent): number | null => {
+    if (!view) return null
+    return view.posAtCoords({ x: event.clientX, y: event.clientY })
+  }
+  const showDropCursor = (position: number) => {
+    if (!view) return
+    const coordinates = view.coordsAtPos(position)
+    if (!coordinates) {
+      hideDropCursor()
+      return
+    }
+    dropCursor.style.left = `${coordinates.left}px`
+    dropCursor.style.top = `${coordinates.top}px`
+    dropCursor.style.height = `${coordinates.bottom - coordinates.top}px`
+    dropCursor.classList.add('visible')
+  }
+  const handle = async (files: FileList | null, insertionPosition?: number) => {
     const file = files?.[0]
     if (!file || (!file.type.startsWith('image/') && !/\.(pdf|eps)$/i.test(file.name))) {
       return false
     }
-    openFigureDialog({ path: await uploadImage(file) })
+    openFigureDialog({
+      path: await uploadImage(file),
+      insertionPosition,
+    })
     return true
   }
+  view.dom.addEventListener('dragover', event => {
+    if (!event.dataTransfer?.types.includes('Files')) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    const position = dropPosition(event)
+    if (position !== null) showDropCursor(position)
+  })
+  view.dom.addEventListener('dragleave', event => {
+    const nextTarget = event.relatedTarget
+    if (nextTarget instanceof Node && view?.dom.contains(nextTarget)) return
+    hideDropCursor()
+  })
   view.dom.addEventListener('drop', event => {
     if (event.dataTransfer?.files.length) {
       event.preventDefault()
-      void handle(event.dataTransfer.files)
+      const insertionPosition = dropPosition(event) ?? undefined
+      hideDropCursor()
+      if (insertionPosition !== undefined) {
+        view?.dispatch({
+          selection: { anchor: insertionPosition },
+          scrollIntoView: true,
+        })
+      }
+      void handle(event.dataTransfer.files, insertionPosition)
     }
   })
+  window.addEventListener('dragend', hideDropCursor)
   view.dom.addEventListener('paste', event => {
     if (event.clipboardData?.files.length) {
       event.preventDefault()
@@ -695,6 +743,7 @@ function editSelectedFigure(): void {
 
 type FigureDialogData = {
   path: string
+  insertionPosition?: number
   width?: number
   placement?: string
   caption?: string | null
@@ -774,7 +823,7 @@ function openFigureDialog(data: FigureDialogData): void {
         },
       })
     } else {
-      insertBlock(latex)
+      insertBlock(latex, data.insertionPosition)
     }
     close()
   })
@@ -783,7 +832,9 @@ function openFigureDialog(data: FigureDialogData): void {
 /**
  * Creates a figure environment from dialog values.
  */
-function buildFigureLatex(data: Required<Omit<FigureDialogData, 'existing'>>): string {
+function buildFigureLatex(
+  data: Required<Omit<FigureDialogData, 'existing' | 'insertionPosition'>>
+): string {
   const svg = data.path.toLowerCase().endsWith('.svg')
   const command = svg ? 'includesvg' : 'includegraphics'
   const sourcePath = svg ? data.path.replace(/\.svg$/i, '') : data.path
