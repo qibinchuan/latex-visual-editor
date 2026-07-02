@@ -12,6 +12,7 @@ export type EditorConfiguration = {
   assetsDirectory: string
   maxImagePreviewBytes: number
   syntaxValidation: boolean
+  useOverleafKeybindings: boolean
 }
 
 export type HostToWebviewMessage =
@@ -31,9 +32,10 @@ export type HostToWebviewMessage =
     }
   | { type: 'documentChanged'; text: string; version: number }
   | { type: 'metadataChanged'; metadata: WorkspaceMetadata }
+  | { type: 'overleafKeybindingsChanged'; enabled: boolean }
   | {
       type: 'command'
-      command: 'insertFigure' | 'insertTable' | 'selectAll' | 'syncState'
+      command: 'insertFigure' | 'insertTable' | 'syncState'
       requestId?: string
     }
   | {

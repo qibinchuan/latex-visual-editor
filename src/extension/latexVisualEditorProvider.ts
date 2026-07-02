@@ -107,6 +107,20 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
     const metadataListener = metadataIndex.onDidChange(metadata => {
       void post({ type: 'metadataChanged', metadata })
     })
+    const configurationListener =
+      vscode.workspace.onDidChangeConfiguration(event => {
+        if (
+          !event.affectsConfiguration(
+            'latexVisualEditor.useOverleafKeybindings'
+          )
+        ) {
+          return
+        }
+        void post({
+          type: 'overleafKeybindingsChanged',
+          enabled: this.configuration.useOverleafKeybindings,
+        })
+      })
 
     void metadataIndex.refresh().catch(error => {
       console.error('Failed to refresh LaTeX visual editor metadata', error)
@@ -191,6 +205,7 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
       this.panels.delete(panel)
       documentListener.dispose()
       metadataListener.dispose()
+      configurationListener.dispose()
       messageListener.dispose()
       visibilityListener.dispose()
       setVisualEditorFocus(panel, false)
@@ -252,6 +267,10 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
         20 * 1024 * 1024
       ),
       syntaxValidation: configuration.get<boolean>('syntaxValidation', true),
+      useOverleafKeybindings: configuration.get<boolean>(
+        'useOverleafKeybindings',
+        true
+      ),
     }
   }
 

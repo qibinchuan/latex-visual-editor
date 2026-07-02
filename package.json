@@ -74,16 +74,52 @@
     ],
     "keybindings": [
       {
-        "command": "latexVisualEditor.selectAll",
+        "command": "latexVisualEditor.consumeShortcut",
         "key": "ctrl+a",
         "mac": "cmd+a",
-        "when": "latexVisualEditor.focused"
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
       },
       {
         "command": "latexVisualEditor.copy",
         "key": "ctrl+c",
         "mac": "cmd+c",
-        "when": "latexVisualEditor.focused"
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
+      },
+      {
+        "command": "latexVisualEditor.consumeShortcut",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
+      },
+      {
+        "command": "latexVisualEditor.consumeShortcut",
+        "key": "ctrl+y",
+        "mac": "cmd+y",
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
+      },
+      {
+        "command": "latexVisualEditor.consumeShortcut",
+        "key": "ctrl+shift+z",
+        "mac": "cmd+shift+z",
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
+      },
+      {
+        "command": "latexVisualEditor.consumeShortcut",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
+      },
+      {
+        "command": "latexVisualEditor.consumeShortcut",
+        "key": "ctrl+b",
+        "mac": "cmd+b",
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
+      },
+      {
+        "command": "latexVisualEditor.consumeShortcut",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "config.latexVisualEditor.useOverleafKeybindings && activeCustomEditorId == latexVisualEditor.editor"
       }
     ],
     "menus": {
@@ -118,6 +154,11 @@
           "default": true,
           "description": "Apply the current source/visual toggle choice when opening other LaTeX files."
         },
+        "latexVisualEditor.useOverleafKeybindings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use Overleaf keyboard shortcuts in the visual editor. Disable this to leave conflicting shortcuts to VS Code."
+        },
         "latexVisualEditor.maxImagePreviewBytes": {
           "type": "number",
           "default": 20971520,
@@ -141,6 +182,8 @@
     "typecheck": "tsc --noEmit",
     "pretest": "npm run generate:parser",
     "test": "vitest run",
+    "test:e2e:shortcuts": "node scripts/test-keyboard-shortcuts.mjs",
+    "test:e2e:shortcuts:disabled": "node scripts/test-keyboard-shortcuts.mjs --disabled",
     "check": "npm run typecheck && npm test",
     "vscode:prepublish": "npm run check && npm run build",
     "package": "vsce package --no-dependencies"
@@ -165,9 +208,11 @@
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.15.3",
     "@types/vscode": "^1.95.0",
+    "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "^3.3.2",
     "esbuild": "^0.28.1",
     "jsdom": "^29.1.1",
+    "playwright": "^1.61.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }

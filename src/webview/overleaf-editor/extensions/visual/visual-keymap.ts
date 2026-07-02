@@ -18,6 +18,7 @@ import {
 } from '../toolbar/lists'
 import { createListItem } from './utils/list-item'
 import { getListType } from '../../utils/tree-operations/lists'
+import { toggleRanges } from '../../commands/ranges'
 
 const cursorIsAtStartOfListItem = (state: EditorState) =>
   state.selection.ranges.every(range => {
@@ -50,6 +51,24 @@ const indentDecrease = (view: EditorView) => {
       return false
   }
 }
+
+/**
+ * Formatting shortcuts that match Overleaf and can be disabled independently.
+ */
+export const overleafKeymap = Prec.highest(
+  keymap.of([
+    {
+      key: 'Mod-b',
+      preventDefault: true,
+      run: toggleRanges('\\textbf'),
+    },
+    {
+      key: 'Mod-i',
+      preventDefault: true,
+      run: toggleRanges('\\textit'),
+    },
+  ])
+)
 
 /**
  * A keymap which provides behaviours for the visual editor,

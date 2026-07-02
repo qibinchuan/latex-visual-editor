@@ -43,6 +43,7 @@ Text with \textbf{bold} and \(x^2\).
             assetsDirectory: 'assets',
             maxImagePreviewBytes: 1024,
             syntaxValidation: true,
+            useOverleafKeybindings: true,
           },
         },
         '*'
@@ -116,6 +117,54 @@ Text with \textbf{bold} and \(x^2\).
         .value
     ).toBe('section')
 
+    const boldFrom = initializedText.indexOf('Text with')
+    editor.dispatch({
+      selection: EditorSelection.range(boldFrom, boldFrom + 'Text'.length),
+    })
+    editor.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'b',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(editor.state.doc.toString()).toContain(String.raw`\textbf{Text} with`)
+
+    editor.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'z',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(editor.state.doc.toString()).toBe(initializedText)
+
+    window.postMessage(
+      {
+        type: 'overleafKeybindingsChanged',
+        enabled: false,
+      },
+      '*'
+    )
+    await new Promise(resolve => setTimeout(resolve, 10))
+    editor.dispatch({
+      selection: EditorSelection.range(boldFrom, boldFrom + 'Text'.length),
+    })
+    editor.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'b',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(editor.state.doc.toString()).toBe(initializedText)
+
     const typingPosition = initializedText.indexOf('Text with') + 4
     editor.dispatch({
       changes: { from: typingPosition, insert: 'a' },
@@ -150,7 +199,7 @@ Text with \textbf{bold} and \(x^2\).
       {
         type: 'documentChanged',
         text: changedText,
-        version: 4,
+        version: 10,
       },
       '*'
     )

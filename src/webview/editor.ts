@@ -43,7 +43,10 @@ import {
   visualHighlightStyle,
   visualTheme,
 } from './overleaf-editor/extensions/visual/visual-theme'
-import { visualKeymap } from './overleaf-editor/extensions/visual/visual-keymap'
+import {
+  overleafKeymap,
+  visualKeymap,
+} from './overleaf-editor/extensions/visual/visual-keymap'
 import { showContentWhenParsed } from './showContentWhenParsed'
 import { latexAutocomplete } from './latexAutocomplete'
 import { findCurrentSectionHeadingLevel } from './overleaf-editor/extensions/toolbar/sections'
@@ -68,6 +71,7 @@ const pendingImages = new Map<string, (path: string) => void>()
 
 let view: EditorView | undefined
 const colorTheme = new Compartment()
+const overleafKeybindings = new Compartment()
 let hostVersion = 0
 let applyingHostDocument = false
 let viewStateFrame: number | undefined
@@ -84,6 +88,7 @@ let metadata: WorkspaceMetadata = {
   commands: [],
   environments: [],
 }
+let useOverleafKeybindings = true
 
 window.addEventListener('focus', () => {
   vscode.postMessage({ type: 'focusChanged', focused: true })
@@ -99,6 +104,7 @@ window.addEventListener('message', event => {
     case 'initialize':
       hostVersion = message.version
       metadata = message.metadata
+      useOverleafKeybindings = message.configuration.useOverleafKeybindings
       if (!view) {
         createEditor(message.text, message.selection, message.viewState)
       } else {
@@ -117,6 +123,16 @@ window.addEventListener('message', event => {
       break
     case 'metadataChanged':
       metadata = message.metadata
+      break
+    case 'overleafKeybindingsChanged':
+      useOverleafKeybindings = message.enabled
+      if (view) {
+        view.dispatch({
+          effects: overleafKeybindings.reconfigure(
+            useOverleafKeybindings ? overleafKeymap : []
+          ),
+        })
+      }
       break
     case 'resourceResolved': {
       const resourcePath = pendingResources.get(message.requestId)
@@ -154,12 +170,6 @@ window.addEventListener('message', event => {
             head: view.state.selection.main.head,
           },
           viewState: measureViewState(view),
-        })
-      }
-      else if (view) {
-        view.dispatch({
-          selection: EditorSelection.single(0, view.state.doc.length),
-          userEvent: 'select',
         })
       }
       break
@@ -219,6 +229,9 @@ function createEditor(
       atomicDecorations({ previewByPath }),
       markDecorations,
       visualKeymap,
+      overleafKeybindings.of(
+        useOverleafKeybindings ? overleafKeymap : []
+      ),
       pasteHtml,
       figureModal(),
       showContentWhenParsed,
