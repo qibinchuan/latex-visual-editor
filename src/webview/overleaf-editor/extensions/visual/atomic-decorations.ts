@@ -333,7 +333,10 @@ export const atomicDecorations = (options: Options) => {
                 to: endLine.to,
               }
 
-              if (shouldDecorate(state, { from: begin.from, to: end.to })) {
+              if (
+                envName !== 'table' &&
+                shouldDecorate(state, { from: begin.from, to: end.to })
+              ) {
                 decorations.push(
                   Decoration.replace({
                     widget: new EnvironmentLineWidget(envName, 'begin'),
@@ -1460,12 +1463,13 @@ export const atomicDecorations = (options: Options) => {
             decorations: value.decorations.map(tr.changes),
           }
         } else if (
-          // only update the decorations when the mouse is not making a selection
-          !value.mousedown &&
-          (tr.effects.some(effect => effect.is(refreshAtomicDecorations)) ||
-            tree !== value.previousTree ||
-            tr.selection ||
-            hasMouseDownEffect(tr))
+          // Explicit refreshes are programmatic and must also recover a stale
+          // mousedown state after a widget replaces itself from a popup action.
+          tr.effects.some(effect => effect.is(refreshAtomicDecorations)) ||
+          (!value.mousedown &&
+            (tree !== value.previousTree ||
+              tr.selection ||
+              hasMouseDownEffect(tr)))
         ) {
           // tree changed, or selection changed, or mousedown ended
           // TODO: update the existing decorations for the changed range(s)?

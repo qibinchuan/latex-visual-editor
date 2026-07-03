@@ -37,6 +37,7 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
     vscode.WebviewPanel,
     vscode.TextDocument
   >()
+  private readonly tableSelections = new Map<vscode.WebviewPanel, string>()
   private readonly pendingStateSnapshots = new Map<string, () => void>()
   private readonly pendingAutoBuildSaves = new Map<string, NodeJS.Timeout>()
 
@@ -154,6 +155,13 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
               head: webviewOffsetToHost(document.getText(), message.head),
             })
             break
+          case 'tableSelectionChanged':
+            if (message.text === undefined) {
+              this.tableSelections.delete(panel)
+            } else {
+              this.tableSelections.set(panel, message.text)
+            }
+            break
           case 'viewStateChanged':
             await storeViewState(
               this.context,
@@ -211,6 +219,7 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
     panel.onDidDispose(() => {
       this.panels.delete(panel)
       this.panelDocuments.delete(panel)
+      this.tableSelections.delete(panel)
       documentListener.dispose()
       metadataListener.dispose()
       configurationListener.dispose()
@@ -219,6 +228,14 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
       setVisualEditorFocus(panel, false)
       if (getActiveVisualEditor() === panel) setActiveVisualEditor(undefined)
     })
+  }
+
+  /**
+   * Returns tab-separated text for the active visual table selection.
+   */
+  getActiveTableSelectionText(): string | undefined {
+    const panel = getActiveVisualEditor()
+    return panel ? this.tableSelections.get(panel) : undefined
   }
 
   /**

@@ -85,6 +85,7 @@ export type WebviewToHostMessage =
   | { type: 'ready' }
   | { type: 'focusChanged'; focused: boolean }
   | { type: 'selectionChanged'; anchor: number; head: number }
+  | { type: 'tableSelectionChanged'; text?: string }
   | {
       type: 'viewStateChanged'
       anchor: number

@@ -205,6 +205,11 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     }),
     vscode.commands.registerCommand('latexVisualEditor.copy', async () => {
+      const tableSelection = visualEditorProvider.getActiveTableSelectionText()
+      if (tableSelection !== undefined) {
+        await vscode.env.clipboard.writeText(tableSelection)
+        return
+      }
       const document = getActiveVisualEditorDocument()
       if (!document) return
 

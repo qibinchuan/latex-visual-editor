@@ -72,6 +72,53 @@ body {
   outline-offset: 1px;
 }
 
+.toolbar-table-inserter {
+  position: relative;
+}
+
+.toolbar-table-grid-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  box-sizing: border-box;
+  width: max-content;
+  padding: 8px;
+  color: var(--vscode-editorWidget-foreground);
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
+}
+
+.toolbar-table-size-label {
+  min-height: 20px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.toolbar-table-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 18px);
+  gap: 2px;
+}
+
+#toolbar .toolbar-table-grid-cell {
+  box-sizing: border-box;
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 1px;
+}
+
+#toolbar .toolbar-table-grid-cell.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  border-color: var(--vscode-focusBorder);
+}
+
 #editor {
   flex: 1;
   min-height: 0;
@@ -122,6 +169,11 @@ body {
   user-select: none;
 }
 
+.latex-visual-table.table-generator-table {
+  width: 100%;
+  max-width: 100%;
+}
+
 .latex-visual-table td {
   min-width: 60px;
   padding: 8px;
@@ -131,6 +183,15 @@ body {
 .table-generator-cell-render {
   min-height: 1.5em;
   white-space: pre-wrap;
+}
+
+.table-generator-caption {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10%;
+  text-align: center;
+  font-family: var(--visual-font-family);
+  user-select: text;
 }
 
 .table-generator-cell-input {
@@ -150,6 +211,106 @@ body {
   line-height: inherit;
   text-align: inherit;
   user-select: text;
+}
+
+.table-generator-menu-caret {
+  margin-left: 4px;
+  font-size: 11px;
+}
+
+.table-generator-toolbar-dropdown-popover {
+  position: absolute;
+  z-index: 154;
+  border: 1px solid var(--table-generator-toolbar-dropdown-border-color);
+  border-radius: 4px;
+  box-shadow: 0 3px 10px var(--table-generator-toolbar-shadow-color);
+}
+
+.table-generator-dialog-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--vscode-editorWidget-foreground);
+  background: rgb(0 0 0 / 35%);
+  font-family: var(--vscode-font-family);
+}
+
+.table-generator-dialog {
+  box-sizing: border-box;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  padding: 20px;
+  overflow: auto;
+  color: var(--vscode-editorWidget-foreground);
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+}
+
+.table-generator-dialog h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.table-generator-dialog h3 {
+  margin: 16px 0 4px;
+  font-size: 14px;
+}
+
+.table-generator-dialog p {
+  margin: 8px 0;
+}
+
+.table-generator-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.table-generator-dialog button {
+  padding: 5px 12px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+.table-generator-dialog button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.table-generator-width-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 12px;
+}
+
+.table-generator-width-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.table-generator-width-fields input,
+.table-generator-width-fields select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 28px;
+  padding: 3px 6px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+}
+
+.table-generator-width-help {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
 }
 
 .ol-cm-graphics-edit-button {

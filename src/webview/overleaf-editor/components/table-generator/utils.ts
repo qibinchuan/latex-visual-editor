@@ -12,8 +12,8 @@ import {
 
 const COMMIT_CHARACTERS = ['c', 'l', 'r', 'p', 'm', 'b', 'X', '>']
 
-export type CellPosition = { from: number; to: number }
-export type RowPosition = {
+type CellPosition = { from: number; to: number }
+type RowPosition = {
   from: number
   to: number
   hlines: { from: number; to: number }[]
@@ -228,8 +228,8 @@ type ParsedCell = {
   }
 }
 
-export type CellSeparator = Position
-export type RowSeparator = Position
+type CellSeparator = Position
+type RowSeparator = Position
 
 type ParsedRow = {
   position: Position
@@ -451,7 +451,7 @@ export type ParsedTableData = {
   cellSeparators: CellSeparator[][]
 }
 
-type TableEnvironmentData = {
+export type TableEnvironmentData = {
   table: { from: number; to: number }
   caption?: { from: number; to: number }
   label?: { from: number; to: number }

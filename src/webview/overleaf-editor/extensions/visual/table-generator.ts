@@ -3,8 +3,6 @@ import { EditorView } from '@codemirror/view'
 export const tableGeneratorTheme = EditorView.baseTheme({
   '&dark .table-generator': {
     '--table-generator-active-border-color': '#fff',
-    '--table-generator-coming-soon-background-color': '#41464f',
-    '--table-generator-coming-soon-color': '#fff',
     '--table-generator-divider-color': 'rgba(125,125,125,0.3)',
     '--table-generator-dropdown-divider-color': 'rgba(125,125,125,0.3)',
     '--table-generator-focus-border-color': '#5d7498',
@@ -41,10 +39,6 @@ export const tableGeneratorTheme = EditorView.baseTheme({
 
   '&light .table-generator': {
     '--table-generator-active-border-color': '#666',
-    '--table-generator-coming-soon-background-color':
-      'var(--vscode-editorWidget-background, #f3f3f3)',
-    '--table-generator-coming-soon-color':
-      'var(--vscode-editorWidget-foreground, #333)',
     '--table-generator-divider-color':
       'var(--vscode-panel-border, #e5e5e5)',
     '--table-generator-dropdown-divider-color':
@@ -246,9 +240,6 @@ export const tableGeneratorTheme = EditorView.baseTheme({
     display: 'flex',
     flexWrap: 'wrap',
     rowGap: '8px',
-    '&.table-generator-toolbar-floating-custom-sizes': {
-      top: '-8px',
-    },
   },
 
   '.table-generator-toolbar-button': {
@@ -311,20 +302,6 @@ export const tableGeneratorTheme = EditorView.baseTheme({
     },
   },
 
-  '.table-generator-button-menu-popover': {
-    'background-color': 'var(--table-generator-toolbar-background) !important',
-    '& .popover-content, & .popover-body': {
-      padding: '4px',
-    },
-    '& .list-group': {
-      margin: '0',
-      padding: '0',
-    },
-    '& > .arrow, & > .popover-arrow': {
-      display: 'none',
-    },
-  },
-
   '.table-generator-cell-input': {
     display: 'block',
     color: 'inherit',
@@ -342,23 +319,6 @@ export const tableGeneratorTheme = EditorView.baseTheme({
     'line-height': 'inherit',
     '&:focus, &:focus-visible': {
       outline: 'none',
-    },
-  },
-
-  '.table-generator-border-options-coming-soon': {
-    display: 'flex',
-    margin: '4px',
-    'font-size': '12px',
-    background: 'var(--table-generator-coming-soon-background-color)',
-    color: 'var(--table-generator-coming-soon-color)',
-    padding: '8px',
-    gap: '6px',
-    'align-items': 'flex-start',
-    'max-width': '240px',
-    'font-family': 'var(--bs-body-font-family)',
-
-    '& .info-icon': {
-      flex: ' 0 0 24px',
     },
   },
 
@@ -479,11 +439,6 @@ export const tableGeneratorTheme = EditorView.baseTheme({
       border: '0',
       height: '1px',
     },
-
-    '& .ol-cm-toolbar-dropdown-option-content': {
-      textAlign: 'left',
-      flexGrow: '1',
-    },
   },
 
   '.ol-cm-environment-table.table-generator-error-container, .ol-cm-environment-table.ol-cm-tabular':
@@ -491,13 +446,6 @@ export const tableGeneratorTheme = EditorView.baseTheme({
       background: 'rgba(125, 125, 125, 0.05)',
       'font-family': 'var(--bs-body-font-family)',
     },
-
-  '.table-generator-filler-row': {
-    border: 'none !important',
-    '& td': {
-      'min-width': '40px',
-    },
-  },
 
   '.table-generator-column-indicator-button': {
     verticalAlign: 'middle',
@@ -518,17 +466,6 @@ export const tableGeneratorTheme = EditorView.baseTheme({
       background:
         'var(--table-generator-column-size-indicator-hover-background)',
       color: 'var(--table-generator-column-size-indicator-hover-color)',
-    },
-
-    '& .table-generator-column-indicator-icon': {
-      fontSize: '16px',
-      lineHeight: '16px',
-    },
-
-    '& .table-generator-column-indicator-label': {
-      textOverflow: 'ellipsis',
-      overflow: 'hidden',
-      whiteSpace: 'nowrap',
     },
   },
   '.table-generator-column-widths-row': {

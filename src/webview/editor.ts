@@ -156,6 +156,28 @@ window.addEventListener('blur', () => {
   vscode.postMessage({ type: 'focusChanged', focused: false })
 })
 vscode.postMessage({ type: 'focusChanged', focused: document.hasFocus() })
+window.addEventListener('table-selection-changed', event => {
+  vscode.postMessage({
+    type: 'tableSelectionChanged',
+    text: (event as CustomEvent<{ text?: string }>).detail.text,
+  })
+})
+window.addEventListener('table-mutated', event => {
+  const range = (event as CustomEvent<{ from: number; to: number }>).detail
+  if (view) {
+    const selection = view.state.selection.main
+    const intersects =
+      range.from <= selection.to && range.to >= selection.from
+    if (intersects) {
+      const position =
+        range.from > 0
+          ? range.from - 1
+          : Math.min(view.state.doc.length, range.to + 1)
+      view.dispatch({ selection: EditorSelection.cursor(position) })
+    }
+  }
+  refreshVisualDecorationsWhenParsed()
+})
 
 window.addEventListener('message', event => {
   const message = event.data as HostToWebviewMessage
@@ -609,6 +631,17 @@ function refreshVisualDecorations(): void {
   })
 }
 
+function refreshVisualDecorationsWhenParsed(attempt = 0): void {
+  if (!view) return
+  if (syntaxTree(view.state).length < view.state.doc.length && attempt < 60) {
+    requestAnimationFrame(() =>
+      refreshVisualDecorationsWhenParsed(attempt + 1)
+    )
+    return
+  }
+  refreshVisualDecorations()
+}
+
 /**
  * Builds the visual formatting toolbar.
  */
@@ -678,7 +711,119 @@ function createToolbar(): void {
     true
   )
   addButton(toolbar, 'Figure', 'Image', openImagePicker)
-  addButton(toolbar, 'Table', 'Table', () => insertTable(3, 3))
+  addTableInserter(toolbar)
+}
+
+/**
+ * Adds Overleaf's 10x10 table-size picker to the toolbar.
+ */
+function addTableInserter(parent: HTMLElement): void {
+  const container = document.createElement('div')
+  container.className = 'toolbar-table-inserter'
+  const trigger = document.createElement('button')
+  trigger.type = 'button'
+  trigger.id = 'toolbar-table'
+  trigger.title = 'Table'
+  trigger.setAttribute('aria-label', 'Table')
+  trigger.setAttribute('aria-haspopup', 'grid')
+  trigger.setAttribute('aria-expanded', 'false')
+  trigger.textContent = 'Table'
+
+  const popup = document.createElement('div')
+  popup.id = 'toolbar-table-menu'
+  popup.className = 'toolbar-table-grid-popover'
+  popup.hidden = true
+  const sizeLabel = document.createElement('div')
+  sizeLabel.className = 'toolbar-table-size-label'
+  sizeLabel.textContent = 'Insert table'
+  const grid = document.createElement('div')
+  grid.className = 'toolbar-table-grid'
+  grid.setAttribute('role', 'grid')
+  grid.setAttribute('aria-label', 'Select table size')
+  const cells: HTMLButtonElement[] = []
+
+  const highlight = (columns: number, rows: number) => {
+    sizeLabel.textContent = `Insert ${rows}\u00d7${columns} table`
+    for (const cell of cells) {
+      cell.classList.toggle(
+        'active',
+        Number(cell.dataset.columns) <= columns &&
+          Number(cell.dataset.rows) <= rows
+      )
+    }
+  }
+
+  const clearHighlight = () => {
+    sizeLabel.textContent = 'Insert table'
+    cells.forEach(cell => cell.classList.remove('active'))
+  }
+
+  const close = () => {
+    popup.hidden = true
+    trigger.classList.remove('active')
+    trigger.setAttribute('aria-expanded', 'false')
+    clearHighlight()
+  }
+
+  for (let row = 1; row <= 10; row++) {
+    for (let column = 1; column <= 10; column++) {
+      const cell = document.createElement('button')
+      cell.type = 'button'
+      cell.className = 'toolbar-table-grid-cell'
+      cell.dataset.columns = String(column)
+      cell.dataset.rows = String(row)
+      cell.setAttribute('role', 'gridcell')
+      cell.setAttribute('aria-label', `${row} by ${column} table`)
+      cell.addEventListener('mouseenter', () => highlight(column, row))
+      cell.addEventListener('focus', () => highlight(column, row))
+      cell.addEventListener('mousedown', event => event.preventDefault())
+      cell.addEventListener('click', () => {
+        close()
+        insertTable(column, row)
+      })
+      cells.push(cell)
+      grid.append(cell)
+    }
+  }
+  grid.addEventListener('mouseleave', clearHighlight)
+  grid.addEventListener('keydown', event => {
+    const current = event.target as HTMLButtonElement
+    const index = cells.indexOf(current)
+    if (index < 0) return
+    let next = index
+    if (event.key === 'ArrowLeft') next = Math.max(0, index - 1)
+    else if (event.key === 'ArrowRight') {
+      next = Math.min(cells.length - 1, index + 1)
+    } else if (event.key === 'ArrowUp') next = Math.max(0, index - 10)
+    else if (event.key === 'ArrowDown') {
+      next = Math.min(cells.length - 1, index + 10)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      close()
+      trigger.focus()
+      return
+    } else {
+      return
+    }
+    event.preventDefault()
+    cells[next].focus()
+  })
+
+  trigger.addEventListener('mousedown', event => event.preventDefault())
+  trigger.addEventListener('click', event => {
+    event.stopPropagation()
+    popup.hidden = !popup.hidden
+    trigger.classList.toggle('active', !popup.hidden)
+    trigger.setAttribute('aria-expanded', String(!popup.hidden))
+  })
+  popup.addEventListener('click', event => event.stopPropagation())
+  window.addEventListener('mousedown', event => {
+    if (!container.contains(event.target as Node)) close()
+  })
+
+  popup.append(sizeLabel, grid)
+  container.append(trigger, popup)
+  parent.append(container)
 }
 
 /**

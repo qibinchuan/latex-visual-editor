@@ -8,6 +8,7 @@ import {
   generateTable,
   validateParsedTable,
 } from '../../../components/table-generator/utils'
+import { TableData } from '../../../components/table-generator/table-model'
 import { TabularWidget, renderTableCellContent } from './tabular'
 import { tableDecorationRange } from '../atomic-decorations'
 
@@ -53,23 +54,47 @@ describe('TabularWidget', () => {
     const dispatches: unknown[] = []
     const widget = new TabularWidget(
       {
-        table: {
-          columns: [{}, {}],
-          rows: [
+        table: new TableData(
+          [
             {
               cells: [
-                { content: 'first' },
-                { content: 'second' },
+                { content: 'first', from: 0, to: 5 },
+                { content: 'second', from: 8, to: 14 },
               ],
+              borderTop: 0,
+              borderBottom: 0,
             },
           ],
-        },
+          [
+            {
+              alignment: 'left',
+              borderLeft: 0,
+              borderRight: 0,
+              content: 'l',
+              cellSpacingLeft: '',
+              cellSpacingRight: '',
+              customCellDefinition: '',
+              isParagraphColumn: false,
+            },
+            {
+              alignment: 'right',
+              borderLeft: 0,
+              borderRight: 0,
+              content: 'r',
+              cellSpacingLeft: '',
+              cellSpacingRight: '',
+              customCellDefinition: '',
+              isParagraphColumn: false,
+            },
+          ]
+        ),
         cellPositions: [[{ from: 0, to: 5 }, { from: 8, to: 14 }]],
         cellSeparators: [[{ from: 5, to: 8 }]],
         rowPositions: [{ from: 0, to: 17, hlines: [] }],
+        rowSeparators: [],
         specification: { from: 20, to: 22 },
       } as never,
-      { from: 0 } as never,
+      { from: 0, to: 17 } as never,
       'first & second',
       null,
       false
@@ -81,16 +106,24 @@ describe('TabularWidget', () => {
       requestMeasure() {},
       state: {
         readOnly: false,
+        doc: { length: 22 },
+        selection: { main: { anchor: 0, head: 0 } },
         sliceDoc: () => 'lr',
       },
     } as never)
     document.body.append(dom)
     expect(dom.classList.contains('table-generator')).toBe(true)
-    return { dom, cells: dom.querySelectorAll('td'), dispatches }
+    return {
+      dom,
+      cells: dom.querySelectorAll<HTMLTableCellElement>(
+        '.table-generator-cell'
+      ),
+      dispatches,
+    }
   }
 
-  it('inserts a caret on a single click', () => {
-    const { cells } = createWidget()
+  it('inserts a caret and keeps table options visible on a single click', () => {
+    const { dom, cells } = createWidget()
     cells[0].dispatchEvent(
       new MouseEvent('mousedown', {
         bubbles: true,
@@ -110,7 +143,14 @@ describe('TabularWidget', () => {
     expect(input).not.toBeNull()
     expect(document.activeElement).toBe(input)
     expect(input?.selectionStart).toBe('first'.length)
-    expect(cells[0].classList.contains('selected')).toBe(false)
+    expect(cells[0].classList.contains('selected')).toBe(true)
+    expect(
+      dom.querySelector<HTMLElement>('.table-generator-floating-toolbar')
+        ?.hidden
+    ).toBe(false)
+    expect(
+      dom.querySelector('#table-generator-borders-dropdown')
+    ).not.toBeNull()
   })
 
   it('selects cells by dragging without native text selection', () => {
@@ -199,7 +239,7 @@ describe('TabularWidget', () => {
     let tabularNode: SyntaxNode | undefined
     parser.parse(source).iterate({
       enter(node) {
-        if (node.type.name === 'TabularEnvironment') {
+        if (node.type.name === 'TabularEnvironment' && !tabularNode) {
           tabularNode = node.node
         }
       },
@@ -221,26 +261,21 @@ describe('TabularWidget', () => {
       state,
     } as never)
     document.body.append(dom)
-    const secondCell = dom.querySelectorAll('tr')[0].querySelectorAll('td')[1]
+    const secondColumnSelector = dom.querySelector<HTMLTableCellElement>(
+      '[data-column-selector="1"]'
+    )!
 
-    secondCell.dispatchEvent(
+    secondColumnSelector.dispatchEvent(
       new MouseEvent('mousedown', {
         bubbles: true,
         button: 0,
-        clientX: 0,
       })
     )
-    secondCell.dispatchEvent(
-      new MouseEvent('mousemove', {
-        bubbles: true,
-        buttons: 1,
-        clientX: 10,
-      })
-    )
-    secondCell.dispatchEvent(
-      new MouseEvent('mouseup', { bubbles: true, button: 0 })
-    )
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }))
+    dom
+      .querySelector<HTMLButtonElement>(
+        '#table-generator-remove-column-row'
+      )!
+      .click()
 
     expect(Array.isArray(transaction!.changes)).toBe(true)
     const nextState = state.update({
@@ -250,7 +285,7 @@ describe('TabularWidget', () => {
     let nextTabularNode: SyntaxNode | undefined
     parser.parse(nextSource).iterate({
       enter(node) {
-        if (node.type.name === 'TabularEnvironment') {
+        if (node.type.name === 'TabularEnvironment' && !nextTabularNode) {
           nextTabularNode = node.node
         }
       },
@@ -271,6 +306,93 @@ describe('TabularWidget', () => {
     ])
   })
 
+  it.each(['above', 'below'] as const)(
+    'renders a rich caption %s the visual table',
+    position => {
+      const caption = String.raw`\caption{A \textbf{bold} caption}`
+      const tabular = String.raw`\begin{tabular}{l}
+A\\
+\end{tabular}`
+      const source = String.raw`\begin{table}
+${position === 'above' ? `${caption}\n${tabular}` : `${tabular}\n${caption}`}
+\end{table}`
+      const state = EditorState.create({ doc: source })
+      let tableNode: SyntaxNode | undefined
+      let tabularNode: SyntaxNode | undefined
+      parser.parse(source).iterate({
+        enter(node) {
+          if (node.type.name === 'TableEnvironment' && !tableNode) {
+            tableNode = node.node
+          }
+          if (node.type.name === 'TabularEnvironment' && !tabularNode) {
+            tabularNode = node.node
+          }
+        },
+      })
+      const widget = new TabularWidget(
+        generateTable(tabularNode!, state),
+        tabularNode!,
+        source,
+        tableNode!,
+        true
+      )
+      const dom = widget.toDOM({
+        dispatch() {},
+        requestMeasure() {},
+        state,
+      } as never)
+      document.body.append(dom)
+
+      const captionElement = dom.querySelector('.table-generator-caption')
+      const tableElement = dom.querySelector('.table-generator-table')
+      expect(captionElement?.textContent).toBe('A bold caption')
+      expect(captionElement?.querySelector('b')?.textContent).toBe('bold')
+      const children = [...dom.children]
+      expect(
+        children.indexOf(captionElement!) < children.indexOf(tableElement!)
+      ).toBe(position === 'above')
+      widget.destroy(dom)
+    }
+  )
+
+  it('opens the table toolbar menu popups', () => {
+    const { dom, cells } = createWidget()
+    cells[0].dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, button: 0 })
+    )
+    cells[0].dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        buttons: 1,
+        clientX: 10,
+      })
+    )
+    cells[0].dispatchEvent(
+      new MouseEvent('mouseup', {
+        bubbles: true,
+        button: 0,
+        clientX: 10,
+      })
+    )
+
+    dom
+      .querySelector<HTMLButtonElement>(
+        '#table-generator-borders-dropdown'
+      )!
+      .click()
+    expect(
+      dom.querySelector('#table-generator-borders-fully-bordered')
+    ).not.toBeNull()
+
+    dom
+      .querySelector<HTMLButtonElement>('#table-generator-add-dropdown')!
+      .click()
+    expect(
+      dom.querySelector('#table-generator-insert-column-left')
+    ).not.toBeNull()
+    expect(dom.querySelector('#table-generator-insert-row-below')).not.toBeNull()
+  })
+
   it('parses tabularx with a width argument and X columns', () => {
     const source = String.raw`\begin{tabularx}{\linewidth}{@{}XXXXX@{}}
 \toprule
@@ -283,7 +405,7 @@ CWRU & 1999 & Artificial bearing faults & Vibration & Widely cited dataset\\
     let tabularNode: SyntaxNode | undefined
     parser.parse(source).iterate({
       enter(node) {
-        if (node.type.name === 'TabularEnvironment') {
+        if (node.type.name === 'TabularEnvironment' && !tabularNode) {
           tabularNode = node.node
         }
       },
@@ -298,6 +420,27 @@ CWRU & 1999 & Artificial bearing faults & Vibration & Widely cited dataset\\
     )
   })
 
+  it('parses an inserted empty column as a valid table', () => {
+    const source = String.raw`\begin{tabular}{clc}
+    A  && B \\
+    C  && D \\
+  \end{tabular}`
+    const state = EditorState.create({ doc: source })
+    let tabularNode: SyntaxNode | undefined
+    parser.parse(source).iterate({
+      enter(node) {
+        if (node.type.name === 'TabularEnvironment' && !tabularNode) {
+          tabularNode = node.node
+        }
+      },
+    })
+
+    const parsed = generateTable(tabularNode!, state)
+    expect(validateParsedTable(parsed)).toBe(true)
+    expect(parsed.table.columns).toHaveLength(3)
+    expect(parsed.table.rows).toHaveLength(2)
+  })
+
   it('hides table-only wrapper commands with the visual table', () => {
     const source = String.raw`\renewcommand{\arraystretch}{1.4}
 \resizebox{\textwidth}{!}{
@@ -309,7 +452,7 @@ A & B\\
     let tabularNode: SyntaxNode | undefined
     parser.parse(source).iterate({
       enter(node) {
-        if (node.type.name === 'TabularEnvironment') {
+        if (node.type.name === 'TabularEnvironment' && !tabularNode) {
           tabularNode = node.node
         }
       },
