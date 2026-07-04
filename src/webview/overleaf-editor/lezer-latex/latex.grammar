@@ -103,6 +103,7 @@
     ParBoxCtrlSeq,
     TextBoldCtrlSeq,
     TextItalicCtrlSeq,
+    SayCtrlSeq,
     TextSmallCapsCtrlSeq,
     TextTeletypeCtrlSeq,
     TextMediumCtrlSeq,
@@ -403,6 +404,9 @@ KnownCommand<ArgumentType> {
     } |
     TextItalicCommand {
         TextItalicCtrlSeq TextArgument
+    } |
+    SayCommand {
+        SayCtrlSeq TextArgument
     } |
     TextSmallCapsCommand {
         TextSmallCapsCtrlSeq TextArgument

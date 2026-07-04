@@ -1169,13 +1169,14 @@ export const atomicDecorations = (options: Options) => {
           const shouldShowBraces =
             !shouldDecorate(state, nodeRef) ||
             argumentText?.from === argumentText?.to
+          const isQuote = nodeRef.type.is('SayCommand')
           decorations.push(
             ...decorateArgumentBraces(
-              new BraceWidget(shouldShowBraces ? '{' : ''),
+              new BraceWidget(shouldShowBraces ? '{' : isQuote ? '“' : ''),
               textArgumentNode,
               nodeRef.from,
               true,
-              new BraceWidget(shouldShowBraces ? '}' : '')
+              new BraceWidget(shouldShowBraces ? '}' : isQuote ? '”' : '')
             )
           )
         } else if (nodeRef.type.is('$OtherTextFormattingCommand')) {

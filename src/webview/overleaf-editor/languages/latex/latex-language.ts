@@ -59,6 +59,7 @@ const typeMap: Record<string, string[]> = {
   // text formatting commands that can be toggled via the toolbar
   TextBoldCommand: ['$ToggleTextFormattingCommand'],
   TextItalicCommand: ['$ToggleTextFormattingCommand'],
+  SayCommand: ['$ToggleTextFormattingCommand'],
   // text formatting commands that cannot be toggled via the toolbar
   TextSmallCapsCommand: ['$OtherTextFormattingCommand'],
   TextTeletypeCommand: ['$OtherTextFormattingCommand'],

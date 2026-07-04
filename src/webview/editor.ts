@@ -698,6 +698,14 @@ function createToolbar(): void {
   )
   addButton(
     toolbar,
+    'Quote',
+    '“”',
+    () => run(toggleRanges('\\say')),
+    'quote',
+    true
+  )
+  addButton(
+    toolbar,
     'Bullet list',
     '•',
     () =>
@@ -1141,6 +1149,7 @@ function updateToolbarState(): void {
   const isFormatted = withinFormattingCommand(state)
   setToolbarToggle('bold', isFormatted('\\textbf'))
   setToolbarToggle('italic', isFormatted('\\textit'))
+  setToolbarToggle('quote', isFormatted('\\say'))
 
   const listType = ancestorListType(state)
   setToolbarToggle('bullet-list', listType === 'itemize')
