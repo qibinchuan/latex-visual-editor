@@ -153,7 +153,7 @@ describe('TabularWidget', () => {
     ).not.toBeNull()
   })
 
-  it('selects cells by dragging without native text selection', () => {
+  it('selects cells by dragging without native text selection', async () => {
     const { cells } = createWidget()
     cells[0].dispatchEvent(
       new MouseEvent('mousedown', {
@@ -195,6 +195,10 @@ describe('TabularWidget', () => {
     document.body.dispatchEvent(
       new MouseEvent('mousedown', { bubbles: true, button: 0 })
     )
+    document.body.dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true, button: 0 })
+    )
+    await new Promise(resolve => window.setTimeout(resolve))
     expect([...cells].some(cell => cell.classList.contains('selected'))).toBe(
       false
     )
