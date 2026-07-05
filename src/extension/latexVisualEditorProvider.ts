@@ -542,9 +542,30 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data: blob:; connect-src ${webview.cspSource}; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} blob: 'nonce-${nonce}'; worker-src blob:; child-src blob:;">
+  <meta http-equiv="Content-Security-Policy" content="
+default-src 'none';
+img-src ${webview.cspSource} data: blob:;
+connect-src ${webview.cspSource} https://cdn.jsdelivr.net;
+font-src ${webview.cspSource} data:;
+style-src ${webview.cspSource} https://cdn.jsdelivr.net 'unsafe-inline';
+script-src ${webview.cspSource} https://cdn.jsdelivr.net blob: 'nonce-${nonce}';
+script-src-elem ${webview.cspSource} https://cdn.jsdelivr.net blob: 'nonce-${nonce}';
+worker-src blob:;
+child-src blob:;">
   <link rel="stylesheet" href="${styleUri}">
   <title>LaTeX Visual Editor</title>
+  <script nonce="${nonce}">
+    window.MathJax = {
+      tex: {
+        packages: {'[+]': ['ams','amssymb']},
+        ams: true
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script nonce="${nonce}" src="${mathJaxUri}"></script>
 </head>
 <body>
   <div id="toolbar"></div>
