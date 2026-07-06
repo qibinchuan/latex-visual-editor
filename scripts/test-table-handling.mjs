@@ -167,11 +167,9 @@ try {
     })
   }
   await cells.first().locator('textarea').press('Escape')
-  await frame.locator('#table-generator-show-help').click()
-  const helpDialog = frame.locator('.table-generator-help-modal')
-  await helpDialog.waitFor({ state: 'visible', timeout: 5_000 })
-  await helpDialog.locator('button', { hasText: 'Close' }).click()
-  await helpDialog.waitFor({ state: 'hidden', timeout: 5_000 })
+  if ((await frame.locator('#table-generator-show-help').count()) !== 0) {
+    throw new Error('Table toolbar still contains the removed Help button')
+  }
   await frame.locator('#table-generator-caption-dropdown').click()
   const captionAboveOption = frame.locator('#table-generator-caption-above')
   const captionOptionReceivesPointer = await captionAboveOption.evaluate(

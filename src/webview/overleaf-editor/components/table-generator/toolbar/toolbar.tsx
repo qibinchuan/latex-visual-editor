@@ -272,13 +272,6 @@ export function Toolbar() {
           label="Delete table"
           run={() => removeTable(view, positions, environment)}
         />
-        <ToolbarButton
-          id="table-generator-show-help"
-          icon="help"
-          label="Help"
-          mutates={false}
-          run={() => setDialog('help')}
-        />
       </div>
     </div>
   )

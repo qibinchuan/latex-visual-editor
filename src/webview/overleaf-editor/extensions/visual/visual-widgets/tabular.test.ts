@@ -642,8 +642,8 @@ A\\
       .toBe(true)
   })
 
-  it('opens and closes the help dialog from a toolbar button', () => {
-    const { dom, cells, dispatches } = createWidget()
+  it('does not show a help button in the table toolbar', () => {
+    const { dom, cells } = createWidget()
     act(() => {
       cells[0].dispatchEvent(
         new MouseEvent('mousedown', { bubbles: true, button: 0 })
@@ -652,20 +652,7 @@ A\\
         new MouseEvent('mouseup', { bubbles: true, button: 0 })
       )
     })
-    act(() => {
-      dom
-        .querySelector<HTMLButtonElement>('#table-generator-show-help')!
-        .click()
-    })
-    expect(dom.querySelector('.table-generator-help-modal')).not.toBeNull()
-    expect(dispatches).toHaveLength(0)
-    act(() => {
-      dom
-        .querySelector<HTMLButtonElement>(
-          '.table-generator-help-modal button'
-        )!
-        .click()
-    })
+    expect(dom.querySelector('#table-generator-show-help')).toBeNull()
     expect(dom.querySelector('.table-generator-help-modal')).toBeNull()
   })
 
