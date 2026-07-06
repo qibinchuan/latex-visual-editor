@@ -30,7 +30,8 @@ const builds = [
         watch ? 'development' : 'production'
       ),
     },
-    loader: { '.css': 'css', '.mjs': 'js' },
+    loader: { '.css': 'css', '.mjs': 'js', '.woff2': 'file' },
+    assetNames: 'fonts/[name]',
   },
 ]
 

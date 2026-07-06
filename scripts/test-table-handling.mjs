@@ -139,6 +139,33 @@ try {
   await frame
     .locator('.table-generator-floating-toolbar')
     .waitFor({ state: 'visible', timeout: 5_000 })
+  const toolbarIcons = frame.locator(
+    '.table-generator-floating-toolbar .material-symbols'
+  )
+  await toolbarIcons.first().waitFor({ state: 'visible', timeout: 5_000 })
+  const iconRendering = await toolbarIcons.evaluateAll(elements => ({
+    fontLoaded: document.fonts.check('20px "Material Symbols Rounded"'),
+    fontFamilies: elements.map(
+      element => getComputedStyle(element).fontFamily
+    ),
+    widths: elements.map(element => element.getBoundingClientRect().width),
+  }))
+  if (
+    !iconRendering.fontLoaded ||
+    iconRendering.fontFamilies.some(
+      family => !family.includes('Material Symbols Rounded')
+    ) ||
+    iconRendering.widths.some(width => width > 32)
+  ) {
+    throw new Error(
+      `Table toolbar Material Symbols did not render correctly: ${JSON.stringify(iconRendering)}`
+    )
+  }
+  if (process.env.TABLE_HANDLING_SCREENSHOT) {
+    await frame.locator('.table-generator-floating-toolbar').screenshot({
+      path: process.env.TABLE_HANDLING_SCREENSHOT,
+    })
+  }
   await cells.first().locator('textarea').press('Escape')
   await frame.locator('#table-generator-show-help').click()
   const helpDialog = frame.locator('.table-generator-help-modal')

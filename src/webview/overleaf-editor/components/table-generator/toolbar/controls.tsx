@@ -104,7 +104,7 @@ export function ToolbarMenu({
       >
         {icon && <Icon>{icon}</Icon>}
         {!compact && <span>{label}</span>}
-        <span className="table-generator-menu-caret">⌄</span>
+        <Icon>arrow_drop_down</Icon>
       </button>
       {open && (
         <div

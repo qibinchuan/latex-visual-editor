@@ -52,6 +52,14 @@ export function Toolbar() {
     ? model.getCell(selection.from.row, selection.from.cell).multiColumn
         ?.columns.specification[0]?.alignment
     : model.columns[minX]?.alignment
+  const alignmentIcon =
+    currentAlignment === 'center'
+      ? 'format_align_center'
+      : currentAlignment === 'right'
+        ? 'format_align_right'
+        : currentAlignment === 'paragraph'
+          ? 'format_align_justify'
+          : 'format_align_left'
 
   const captionItems: MenuItem[] = [
     {
@@ -77,21 +85,21 @@ export function Toolbar() {
     {
       id: 'table-generator-borders-fully-bordered',
       label: 'All borders',
-      icon: '◦',
+      icon: 'border_all',
       active: borderTheme === BorderTheme.FULLY_BORDERED,
       run: () => setBorders(view, BorderTheme.FULLY_BORDERED, positions, model),
     },
     {
       id: 'table-generator-borders-no-borders',
       label: 'No borders',
-      icon: '□',
+      icon: 'border_clear',
       active: borderTheme === BorderTheme.NO_BORDERS,
       run: () => setBorders(view, BorderTheme.NO_BORDERS, positions, model),
     },
     {
       id: 'table-generator-borders-booktabs',
       label: 'Booktabs',
-      icon: '☰',
+      icon: 'border_top',
       active: borderTheme === BorderTheme.BOOKTABS,
       run: () => setBorders(view, BorderTheme.BOOKTABS, positions, model),
     },
@@ -100,21 +108,21 @@ export function Toolbar() {
     {
       id: 'table-generator-align-left',
       label: 'Left',
-      icon: '≡',
+      icon: 'format_align_left',
       active: currentAlignment === 'left',
       run: () => setAlignment(view, selection, 'left', positions, model),
     },
     {
       id: 'table-generator-align-center',
       label: 'Center',
-      icon: '≣',
+      icon: 'format_align_center',
       active: currentAlignment === 'center',
       run: () => setAlignment(view, selection, 'center', positions, model),
     },
     {
       id: 'table-generator-align-right',
       label: 'Right',
-      icon: '≡',
+      icon: 'format_align_right',
       active: currentAlignment === 'right',
       run: () => setAlignment(view, selection, 'right', positions, model),
     },
@@ -122,7 +130,7 @@ export function Toolbar() {
       ? [{
           id: 'table-generator-align-justify',
           label: 'Justify',
-          icon: '☰',
+          icon: 'format_align_justify',
           active: currentAlignment === 'paragraph',
           run: () =>
             setAlignment(view, selection, 'paragraph', positions, model),
@@ -212,7 +220,7 @@ export function Toolbar() {
         <ToolbarMenu
           id="table-generator-align-dropdown"
           label="Alignment"
-          icon="≡"
+          icon={alignmentIcon}
           compact
           disabled={!fullColumn && !merged}
           items={alignmentItems}
@@ -220,14 +228,16 @@ export function Toolbar() {
         <ToolbarMenu
           id="format_text_wrap"
           label="Adjust column width"
-          icon="↔"
+          icon={
+            selection.isOnlyFixedWidthColumns(model) ? 'format_text_wrap' : 'width'
+          }
           compact
           disabled={!fullColumn}
           items={widthItems}
         />
         <ToolbarButton
           id="table-generator-merge-cells"
-          icon={merged ? '⊟' : '⊞'}
+          icon="cell_merge"
           label={merged ? 'Unmerge cells' : 'Merge cells'}
           disabled={!merged && !selection.isMergeableCells(model)}
           active={merged}
@@ -239,7 +249,7 @@ export function Toolbar() {
         />
         <ToolbarButton
           id="table-generator-remove-column-row"
-          icon="⌫"
+          icon="delete"
           label="Delete row or column"
           disabled={
             !selection.isAnyRowSelected(model) &&
@@ -250,7 +260,7 @@ export function Toolbar() {
         <ToolbarMenu
           id="table-generator-add-dropdown"
           label="Insert"
-          icon="+"
+          icon="add"
           compact
           items={insertItems}
         />
@@ -258,13 +268,13 @@ export function Toolbar() {
       <div className="table-generator-button-group">
         <ToolbarButton
           id="table-generator-remove-table"
-          icon="✕"
+          icon="delete_forever"
           label="Delete table"
           run={() => removeTable(view, positions, environment)}
         />
         <ToolbarButton
           id="table-generator-show-help"
-          icon="?"
+          icon="help"
           label="Help"
           mutates={false}
           run={() => setDialog('help')}
