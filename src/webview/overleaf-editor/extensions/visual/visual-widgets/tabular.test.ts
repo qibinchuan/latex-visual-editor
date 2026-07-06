@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
+import { act } from 'react'
 import { readFileSync } from 'node:fs'
 import { EditorState } from '@codemirror/state'
 import type { SyntaxNode } from '@lezer/common'
@@ -11,6 +12,10 @@ import {
 import { TableData } from '../../../components/table-generator/table-model'
 import { TabularWidget, renderTableCellContent } from './tabular'
 import { tableDecorationRange } from '../atomic-decorations'
+
+;(
+  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true
 
 describe('renderTableCellContent', () => {
   it('renders rich LaTeX formatting instead of raw commands', () => {
@@ -46,11 +51,15 @@ describe('renderTableCellContent', () => {
 })
 
 describe('TabularWidget', () => {
+  const mounted: Array<{ widget: TabularWidget; dom: HTMLElement }> = []
   afterEach(() => {
+    act(() => {
+      for (const { widget, dom } of mounted.splice(0)) widget.destroy(dom)
+    })
     document.body.replaceChildren()
   })
 
-  const createWidget = () => {
+  const createWidget = (first = 'first', readOnly = false) => {
     const dispatches: unknown[] = []
     const widget = new TabularWidget(
       {
@@ -58,7 +67,7 @@ describe('TabularWidget', () => {
           [
             {
               cells: [
-                { content: 'first', from: 0, to: 5 },
+                { content: first, from: 0, to: 5 },
                 { content: 'second', from: 8, to: 14 },
               ],
               borderTop: 0,
@@ -95,25 +104,30 @@ describe('TabularWidget', () => {
         specification: { from: 20, to: 22 },
       } as never,
       { from: 0, to: 17 } as never,
-      'first & second',
+      `${first} & second`,
       null,
       false
     )
-    const dom = widget.toDOM({
-      dispatch(spec?: unknown) {
-        dispatches.push(spec)
-      },
-      requestMeasure() {},
-      state: {
-        readOnly: false,
-        doc: { length: 22 },
-        selection: { main: { anchor: 0, head: 0 } },
-        sliceDoc: () => 'lr',
-      },
-    } as never)
-    document.body.append(dom)
+    let dom!: HTMLElement
+    act(() => {
+      dom = widget.toDOM({
+        dispatch(spec?: unknown) {
+          dispatches.push(spec)
+        },
+        requestMeasure() {},
+        state: {
+          readOnly,
+          doc: { length: 22 },
+          selection: { main: { anchor: 0, head: 0 } },
+          sliceDoc: () => 'lr',
+        },
+      } as never)
+      document.body.append(dom)
+    })
+    mounted.push({ widget, dom })
     expect(dom.classList.contains('table-generator')).toBe(true)
     return {
+      widget,
       dom,
       cells: dom.querySelectorAll<HTMLTableCellElement>(
         '.table-generator-cell'
@@ -124,20 +138,22 @@ describe('TabularWidget', () => {
 
   it('inserts a caret and keeps table options visible on a single click', () => {
     const { dom, cells } = createWidget()
-    cells[0].dispatchEvent(
-      new MouseEvent('mousedown', {
-        bubbles: true,
-        button: 0,
-        clientX: 10,
-      })
-    )
-    cells[0].dispatchEvent(
-      new MouseEvent('mouseup', {
-        bubbles: true,
-        button: 0,
-        clientX: 10,
-      })
-    )
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          button: 0,
+          clientX: 10,
+        })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mouseup', {
+          bubbles: true,
+          button: 0,
+          clientX: 10,
+        })
+      )
+    })
 
     const input = cells[0].querySelector('textarea')
     expect(input).not.toBeNull()
@@ -153,27 +169,116 @@ describe('TabularWidget', () => {
     ).not.toBeNull()
   })
 
+  it.each(['Escape', 'Tab'])(
+    'restores rendered cell content after %s exits editing',
+    key => {
+      const { cells } = createWidget('$x^2$')
+      act(() => {
+        cells[0].dispatchEvent(
+          new MouseEvent('mousedown', { bubbles: true, button: 0 })
+        )
+        cells[0].dispatchEvent(
+          new MouseEvent('mouseup', { bubbles: true, button: 0 })
+        )
+      })
+      const input = cells[0].querySelector('textarea')!
+      expect(input.value).toBe('$x^2$')
+      act(() => {
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', { bubbles: true, key })
+        )
+      })
+      expect(cells[0].querySelector('textarea')).toBeNull()
+      expect(cells[0].querySelector('.table-generator-cell-render')).not.toBeNull()
+    }
+  )
+
+  it('restores rendered cell content after blur', () => {
+    const { cells } = createWidget('$x^2$')
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, button: 0 })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0 })
+      )
+    })
+    act(() => cells[0].querySelector<HTMLTextAreaElement>('textarea')!.blur())
+    expect(cells[0].querySelector('textarea')).toBeNull()
+    expect(cells[0].querySelector('.table-generator-cell-render')).not.toBeNull()
+  })
+
+  it('does not enter editing in a read-only table', () => {
+    const { cells } = createWidget('first', true)
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, button: 0 })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0 })
+      )
+    })
+    expect(cells[0].querySelector('textarea')).toBeNull()
+  })
+
+  it('routes global shortcuts only to the active table', () => {
+    const first = createWidget()
+    const second = createWidget()
+    act(() => {
+      second.cells[1].dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          button: 0,
+          clientX: 0,
+        })
+      )
+      second.cells[1].dispatchEvent(
+        new MouseEvent('mousemove', {
+          bubbles: true,
+          buttons: 1,
+          clientX: 10,
+        })
+      )
+      second.cells[1].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0 })
+      )
+    })
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }))
+    })
+    expect(first.dispatches).toHaveLength(0)
+    expect(second.dispatches.at(-1)).toMatchObject({ userEvent: 'delete' })
+  })
+
+  it('unmounts the React table when the widget is destroyed', () => {
+    const { dom, widget } = createWidget()
+    act(() => widget.destroy(dom))
+    expect(dom.childElementCount).toBe(0)
+  })
+
   it('selects cells by dragging without native text selection', async () => {
     const { cells } = createWidget()
-    cells[0].dispatchEvent(
-      new MouseEvent('mousedown', {
-        bubbles: true,
-        button: 0,
-        clientX: 0,
-        clientY: 0,
-      })
-    )
-    cells[1].dispatchEvent(
-      new MouseEvent('mousemove', {
-        bubbles: true,
-        buttons: 1,
-        clientX: 10,
-        clientY: 0,
-      })
-    )
-    cells[1].dispatchEvent(
-      new MouseEvent('mouseup', { bubbles: true, button: 0 })
-    )
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          button: 0,
+          clientX: 0,
+          clientY: 0,
+        })
+      )
+      cells[1].dispatchEvent(
+        new MouseEvent('mousemove', {
+          bubbles: true,
+          buttons: 1,
+          clientX: 10,
+          clientY: 0,
+        })
+      )
+      cells[1].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0 })
+      )
+    })
     expect(cells[0].classList.contains('selected')).toBe(true)
     expect(cells[1].classList.contains('selected')).toBe(true)
     expect(cells[0].classList.contains('selection-edge-left')).toBe(true)
@@ -182,23 +287,27 @@ describe('TabularWidget', () => {
 
     document.body.tabIndex = -1
     document.body.focus()
-    window.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        ctrlKey: true,
-        key: 'a',
-      })
-    )
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          ctrlKey: true,
+          key: 'a',
+        })
+      )
+    })
     expect([...cells].every(cell => cell.classList.contains('selected'))).toBe(
       true
     )
 
-    document.body.dispatchEvent(
-      new MouseEvent('mousedown', { bubbles: true, button: 0 })
-    )
-    document.body.dispatchEvent(
-      new MouseEvent('mouseup', { bubbles: true, button: 0 })
-    )
-    await new Promise(resolve => window.setTimeout(resolve))
+    await act(async () => {
+      document.body.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, button: 0 })
+      )
+      document.body.dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0 })
+      )
+      await new Promise(resolve => window.setTimeout(resolve))
+    })
     expect([...cells].some(cell => cell.classList.contains('selected'))).toBe(
       false
     )
@@ -206,27 +315,30 @@ describe('TabularWidget', () => {
 
   it('deletes selected cells structurally', () => {
     const { cells, dispatches } = createWidget()
-    cells[1].dispatchEvent(
-      new MouseEvent('mousedown', {
-        bubbles: true,
-        button: 0,
-        clientX: 0,
-        clientY: 0,
-      })
-    )
-    cells[1].dispatchEvent(
-      new MouseEvent('mousemove', {
-        bubbles: true,
-        buttons: 1,
-        clientX: 10,
-        clientY: 0,
-      })
-    )
-    cells[1].dispatchEvent(
-      new MouseEvent('mouseup', { bubbles: true, button: 0 })
-    )
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }))
+    act(() => {
+      cells[1].dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          button: 0,
+          clientX: 0,
+          clientY: 0,
+        })
+      )
+      cells[1].dispatchEvent(
+        new MouseEvent('mousemove', {
+          bubbles: true,
+          buttons: 1,
+          clientX: 10,
+          clientY: 0,
+        })
+      )
+      cells[1].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0 })
+      )
+    })
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }))
+    })
 
     expect(dispatches.at(-1)).toEqual({
       changes: [
@@ -269,12 +381,14 @@ describe('TabularWidget', () => {
       '[data-column-selector="1"]'
     )!
 
-    secondColumnSelector.dispatchEvent(
-      new MouseEvent('mousedown', {
-        bubbles: true,
-        button: 0,
-      })
-    )
+    act(() => {
+      secondColumnSelector.dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          button: 0,
+        })
+      )
+    })
     dom
       .querySelector<HTMLButtonElement>(
         '#table-generator-remove-column-row'
@@ -308,6 +422,7 @@ describe('TabularWidget', () => {
     expect(nextParsed.table.rows[1].cells.map(cell => cell.content.trim())).toEqual([
       'Headings',
     ])
+    act(() => widget.destroy(dom))
   })
 
   it.each(['above', 'below'] as const)(
@@ -355,46 +470,255 @@ ${position === 'above' ? `${caption}\n${tabular}` : `${tabular}\n${caption}`}
       expect(
         children.indexOf(captionElement!) < children.indexOf(tableElement!)
       ).toBe(position === 'above')
-      widget.destroy(dom)
+      act(() => widget.destroy(dom))
     }
   )
 
+  it('moves a caption above and below through the toolbar', () => {
+    const moveThroughToolbar = (
+      source: string,
+      target: 'above' | 'below'
+    ) => {
+      const state = EditorState.create({ doc: source })
+      let tableNode: SyntaxNode | undefined
+      let tabularNode: SyntaxNode | undefined
+      parser.parse(source).iterate({
+        enter(node) {
+          if (node.type.name === 'TableEnvironment' && !tableNode) {
+            tableNode = node.node
+          }
+          if (node.type.name === 'TabularEnvironment' && !tabularNode) {
+            tabularNode = node.node
+          }
+        },
+      })
+      let transaction: { changes?: unknown } | undefined
+      const widget = new TabularWidget(
+        generateTable(tabularNode!, state),
+        tabularNode!,
+        source.slice(tableNode!.from, tableNode!.to),
+        tableNode!,
+        true
+      )
+      let dom!: HTMLElement
+      act(() => {
+        dom = widget.toDOM({
+          dispatch(spec: typeof transaction) {
+            if (spec?.changes) transaction = spec
+          },
+          requestMeasure() {},
+          state,
+        } as never)
+        document.body.append(dom)
+      })
+      const cell = dom.querySelector<HTMLTableCellElement>(
+        '.table-generator-cell'
+      )!
+      act(() => {
+        cell.dispatchEvent(
+          new MouseEvent('mousedown', { bubbles: true, button: 0 })
+        )
+        cell.dispatchEvent(
+          new MouseEvent('mouseup', { bubbles: true, button: 0 })
+        )
+      })
+      act(() => {
+        cell
+          .querySelector<HTMLTextAreaElement>('textarea')!
+          .dispatchEvent(
+            new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' })
+          )
+        dom
+          .querySelector<HTMLButtonElement>(
+            '#table-generator-caption-dropdown'
+          )!
+          .click()
+      })
+      act(() => {
+        dom
+          .querySelector<HTMLButtonElement>(
+            `#table-generator-caption-${target}`
+          )!
+          .click()
+      })
+      expect(transaction?.changes).toBeDefined()
+      const next = state.update({ changes: transaction!.changes as never }).state
+      act(() => widget.destroy(dom))
+      return next.doc.toString()
+    }
+
+    const below = String.raw`\begin{table}
+\begin{tabular}{l}
+A\\
+\end{tabular}
+\caption{A caption}
+\end{table}`
+    const above = moveThroughToolbar(below, 'above')
+    expect(above.indexOf('\\caption')).toBeLessThan(
+      above.indexOf('\\begin{tabular}')
+    )
+    const movedBelow = moveThroughToolbar(above, 'below')
+    expect(movedBelow.indexOf('\\caption')).toBeGreaterThan(
+      movedBelow.indexOf('\\end{tabular}')
+    )
+  })
+
   it('opens the table toolbar menu popups', () => {
     const { dom, cells } = createWidget()
-    cells[0].dispatchEvent(
-      new MouseEvent('mousedown', { bubbles: true, button: 0 })
-    )
-    cells[0].dispatchEvent(
-      new MouseEvent('mousemove', {
-        bubbles: true,
-        buttons: 1,
-        clientX: 10,
-      })
-    )
-    cells[0].dispatchEvent(
-      new MouseEvent('mouseup', {
-        bubbles: true,
-        button: 0,
-        clientX: 10,
-      })
-    )
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, button: 0 })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mousemove', {
+          bubbles: true,
+          buttons: 1,
+          clientX: 10,
+        })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mouseup', {
+          bubbles: true,
+          button: 0,
+          clientX: 10,
+        })
+      )
+    })
 
-    dom
-      .querySelector<HTMLButtonElement>(
-        '#table-generator-borders-dropdown'
-      )!
-      .click()
+    act(() => {
+      dom
+        .querySelector<HTMLButtonElement>(
+          '#table-generator-borders-dropdown'
+        )!
+        .click()
+    })
     expect(
       dom.querySelector('#table-generator-borders-fully-bordered')
     ).not.toBeNull()
 
-    dom
-      .querySelector<HTMLButtonElement>('#table-generator-add-dropdown')!
-      .click()
+    act(() => {
+      dom
+        .querySelector<HTMLButtonElement>('#table-generator-add-dropdown')!
+        .click()
+    })
     expect(
       dom.querySelector('#table-generator-insert-column-left')
     ).not.toBeNull()
     expect(dom.querySelector('#table-generator-insert-row-below')).not.toBeNull()
+  })
+
+  it('runs toolbar menu commands', () => {
+    const { dom, cells, dispatches } = createWidget()
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, button: 0 })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mousemove', {
+          bubbles: true,
+          buttons: 1,
+          clientX: 10,
+        })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: 10 })
+      )
+    })
+    act(() => {
+      dom
+        .querySelector<HTMLButtonElement>(
+          '#table-generator-borders-dropdown'
+        )!
+        .click()
+    })
+    act(() => {
+      dom
+        .querySelector<HTMLButtonElement>(
+          '#table-generator-borders-no-borders'
+        )!
+        .click()
+    })
+    expect(dispatches.some(dispatch => dispatch && typeof dispatch === 'object'))
+      .toBe(true)
+  })
+
+  it('opens and closes the help dialog from a toolbar button', () => {
+    const { dom, cells, dispatches } = createWidget()
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, button: 0 })
+      )
+      cells[0].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0 })
+      )
+    })
+    act(() => {
+      dom
+        .querySelector<HTMLButtonElement>('#table-generator-show-help')!
+        .click()
+    })
+    expect(dom.querySelector('.table-generator-help-modal')).not.toBeNull()
+    expect(dispatches).toHaveLength(0)
+    act(() => {
+      dom
+        .querySelector<HTMLButtonElement>(
+          '.table-generator-help-modal button'
+        )!
+        .click()
+    })
+    expect(dom.querySelector('.table-generator-help-modal')).toBeNull()
+  })
+
+  it('opens the width dialog without dispatching a document mutation', () => {
+    const { dom, dispatches } = createWidget()
+    act(() => {
+      dom
+        .querySelector<HTMLElement>('[data-column-selector="0"]')!
+        .dispatchEvent(
+          new MouseEvent('mousedown', { bubbles: true, button: 0 })
+        )
+    })
+    act(() => {
+      dom.querySelector<HTMLButtonElement>('#format_text_wrap')!.click()
+    })
+    act(() => {
+      dom
+        .querySelector<HTMLButtonElement>('#table-generator-wrap-text')!
+        .click()
+    })
+    expect(dom.querySelector('.table-generator-width-modal')).not.toBeNull()
+    expect(dispatches).toHaveLength(0)
+  })
+
+  it('runs the merge toolbar button when its selection is valid', () => {
+    const { dom, cells, dispatches } = createWidget()
+    act(() => {
+      cells[0].dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          button: 0,
+          clientX: 0,
+        })
+      )
+      cells[1].dispatchEvent(
+        new MouseEvent('mousemove', {
+          bubbles: true,
+          buttons: 1,
+          clientX: 10,
+        })
+      )
+      cells[1].dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: 10 })
+      )
+    })
+    const merge = dom.querySelector<HTMLButtonElement>(
+      '#table-generator-merge-cells'
+    )!
+    expect(merge.disabled).toBe(false)
+    act(() => merge.click())
+    expect(dispatches.at(-1)).toMatchObject({
+      changes: { insert: String.raw`\multicolumn{2}{c}{first second}` },
+    })
   })
 
   it('parses tabularx with a width argument and X columns', () => {

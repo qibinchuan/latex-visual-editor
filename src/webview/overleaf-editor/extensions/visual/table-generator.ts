@@ -94,9 +94,13 @@ export const tableGeneratorTheme = EditorView.baseTheme({
     'background-color': 'var(--table-generator-selected-background-color)',
   },
 
+  '.table-generator-cell:focus-visible': {
+    outline: '2px dotted var(--table-generator-focus-border-color)',
+  },
+
   '.table-generator-cell': {
     border:
-      'var(--table-generator-inactive-border-width) solid var(--table-generator-inactive-border-color)',
+      'var(--table-generator-inactive-border-width) dashed var(--table-generator-inactive-border-color)',
     'min-width': '40px',
     height: '30px',
     '&.selection-edge-top': {
@@ -294,7 +298,7 @@ export const tableGeneratorTheme = EditorView.baseTheme({
     'align-items': 'center',
     'justify-content': 'center',
     'line-height': '1',
-    overflow: 'hidden',
+    overflow: 'visible',
     '&:not(:last-child)': {
       'border-right': '1px solid var(--table-generator-divider-color)',
       'padding-right': '8px',
@@ -353,6 +357,7 @@ export const tableGeneratorTheme = EditorView.baseTheme({
   '.table-generator-toolbar-dropdown-popover': {
     'max-width': '300px',
     background: 'var(--table-generator-toolbar-background) !important',
+    'pointer-events': 'auto',
 
     '& .popover-content, & .popover-body': {
       padding: '0',

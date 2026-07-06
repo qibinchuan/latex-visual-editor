@@ -417,6 +417,7 @@
     "test:e2e:shortcuts": "node scripts/test-keyboard-shortcuts.mjs",
     "test:e2e:shortcuts:disabled": "node scripts/test-keyboard-shortcuts.mjs --disabled",
     "test:e2e:table-handling": "node scripts/test-table-handling.mjs",
+    "test:e2e:table-handling:system": "node scripts/test-table-handling.mjs --system-vscode",
     "test:e2e:latex-workshop-shortcuts": "node scripts/test-latex-workshop-shortcuts.mjs",
     "test:e2e:visual-auto-build": "node scripts/test-visual-auto-build.mjs",
     "check": "npm run typecheck && npm test",
@@ -436,12 +437,16 @@
     "@overleaf/o-error": "^3.4.0",
     "lodash": "^4.17.21",
     "mathjax": "^4.1.2",
-    "pdfjs-dist": "^4.10.38"
+    "pdfjs-dist": "^4.10.38",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@lezer/generator": "^1.7.3",
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.15.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@types/vscode": "^1.95.0",
     "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "^3.3.2",

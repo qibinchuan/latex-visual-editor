@@ -11,7 +11,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '..')
-const code = await downloadAndUnzipVSCode('1.95.0')
+const useSystemVSCode = process.argv.includes('--system-vscode')
+const code = useSystemVSCode
+  ? path.join(
+      process.env.LOCALAPPDATA,
+      'Programs',
+      'Microsoft VS Code',
+      'Code.exe'
+    )
+  : await downloadAndUnzipVSCode('1.95.0')
 const userDataDir = await mkdtemp(path.join(tmpdir(), 'table-handling-'))
 const extensionsDir = path.join(userDataDir, 'extensions')
 const fixture = path.join(userDataDir, 'table-handling.tex')
@@ -40,7 +48,7 @@ ${filler}
 \begin{table}
   \centering
   \begin{tabular}{cc}
-    A & B \\
+    A & $x^2$ \\
     C & D \\
   \end{tabular}
   \caption{A test table.}
@@ -55,7 +63,7 @@ After the table.
 const codeEnvironment = { ...process.env }
 delete codeEnvironment.ELECTRON_RUN_AS_NODE
 let codeErrors = ''
-const debuggingPort = 9336
+const debuggingPort = useSystemVSCode ? 9337 : 9336
 const codeProcess = spawn(
   code,
   [
@@ -121,11 +129,59 @@ try {
   }
   const cells = table.locator('tbody .table-generator-cell')
 
+  const mathCell = cells.nth(1)
+  await mathCell.locator('mjx-container').waitFor({ timeout: 10_000 })
+  await mathCell.click()
+  await mathCell.locator('textarea').press('Escape')
+  await mathCell.locator('mjx-container').waitFor({ timeout: 10_000 })
+
   await cells.first().click()
   await frame
     .locator('.table-generator-floating-toolbar')
     .waitFor({ state: 'visible', timeout: 5_000 })
   await cells.first().locator('textarea').press('Escape')
+  await frame.locator('#table-generator-show-help').click()
+  const helpDialog = frame.locator('.table-generator-help-modal')
+  await helpDialog.waitFor({ state: 'visible', timeout: 5_000 })
+  await helpDialog.locator('button', { hasText: 'Close' }).click()
+  await helpDialog.waitFor({ state: 'hidden', timeout: 5_000 })
+  await frame.locator('#table-generator-caption-dropdown').click()
+  const captionAboveOption = frame.locator('#table-generator-caption-above')
+  const captionOptionReceivesPointer = await captionAboveOption.evaluate(
+    element => {
+      const rect = element.getBoundingClientRect()
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2
+      )
+      return hit !== null && element.contains(hit)
+    }
+  )
+  if (!captionOptionReceivesPointer) {
+    throw new Error('Table menu item is clipped or blocked from pointer input')
+  }
+  await captionAboveOption.click()
+  await frame.locator('.table-generator-table').waitFor({
+    state: 'visible',
+    timeout: 10_000,
+  })
+  await window.keyboard.press('Control+S')
+  await waitForCaptionPosition(fixture, 'above', 15_000)
+
+  const tableAfterCaptionMove = frame.locator('.table-generator-table')
+  const cellsAfterCaptionMove = tableAfterCaptionMove.locator(
+    'tbody .table-generator-cell'
+  )
+  await cellsAfterCaptionMove.first().click()
+  await cellsAfterCaptionMove.first().locator('textarea').press('Escape')
+  await frame.locator('#table-generator-caption-dropdown').click()
+  await frame.locator('#table-generator-caption-below').click()
+  await frame.locator('.table-generator-table').waitFor({
+    state: 'visible',
+    timeout: 10_000,
+  })
+  await window.keyboard.press('Control+S')
+  await waitForCaptionPosition(fixture, 'below', 15_000)
 
   await selectCell(cells.first())
   await cells.first().press('Control+C')
@@ -145,6 +201,12 @@ try {
   await window.keyboard.press('Escape')
 
   await frame.locator('[data-column-selector="0"]').click({ force: true })
+  await frame.locator('#format_text_wrap').click()
+  await frame.locator('#table-generator-wrap-text').click()
+  const widthDialog = frame.locator('.table-generator-width-modal')
+  await widthDialog.waitFor({ state: 'visible', timeout: 5_000 })
+  await widthDialog.locator('button', { hasText: 'Cancel' }).click()
+  await widthDialog.waitFor({ state: 'hidden', timeout: 5_000 })
   await table.scrollIntoViewIfNeeded()
   const scrollTopBeforeAction = await frame
     .locator('.cm-scroller')
@@ -231,7 +293,7 @@ try {
   }
 
   console.log(
-    'Table generator grid, caption, options, Ctrl+C, structural Delete, menu insertion, expansion, and scroll preservation passed.'
+    'Table math restoration, responsive toolbar buttons/dialogs, generator grid, caption, Ctrl+C, structural Delete, menu insertion, expansion, and scroll preservation passed.'
   )
 } finally {
   await browser.close()
@@ -284,4 +346,21 @@ async function waitForSourceText(file, expected, timeout) {
     await new Promise(resolve => setTimeout(resolve, 250))
   }
   throw new Error(`Source did not contain ${expected}`)
+}
+
+async function waitForCaptionPosition(file, expected, timeout) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    const source = await readFile(file, 'utf8')
+    const caption = source.indexOf('\\caption{A test table.}')
+    const tabularStart = source.indexOf('\\begin{tabular}')
+    const tabularEnd = source.indexOf('\\end{tabular}')
+    const matches =
+      expected === 'above'
+        ? caption >= 0 && caption < tabularStart
+        : caption > tabularEnd
+    if (matches) return
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  throw new Error(`Caption did not move ${expected}`)
 }

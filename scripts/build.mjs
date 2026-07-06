@@ -25,6 +25,11 @@ const builds = [
     outfile: 'dist/webview.js',
     platform: 'browser',
     format: 'iife',
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(
+        watch ? 'development' : 'production'
+      ),
+    },
     loader: { '.css': 'css', '.mjs': 'js' },
   },
 ]
