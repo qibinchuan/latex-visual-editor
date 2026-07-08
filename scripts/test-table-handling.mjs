@@ -11,7 +11,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '..')
-const code = await downloadAndUnzipVSCode('1.95.0')
+const useSystemVSCode = process.argv.includes('--system-vscode')
+const code = useSystemVSCode
+  ? path.join(
+      process.env.LOCALAPPDATA,
+      'Programs',
+      'Microsoft VS Code',
+      'Code.exe'
+    )
+  : await downloadAndUnzipVSCode('1.95.0')
 const userDataDir = await mkdtemp(path.join(tmpdir(), 'table-handling-'))
 const extensionsDir = path.join(userDataDir, 'extensions')
 const fixture = path.join(userDataDir, 'table-handling.tex')
@@ -40,7 +48,7 @@ ${filler}
 \begin{table}
   \centering
   \begin{tabular}{cc}
-    A & B \\
+    A & $x^2$ \\
     C & D \\
   \end{tabular}
   \caption{A test table.}
@@ -55,7 +63,7 @@ After the table.
 const codeEnvironment = { ...process.env }
 delete codeEnvironment.ELECTRON_RUN_AS_NODE
 let codeErrors = ''
-const debuggingPort = 9336
+const debuggingPort = useSystemVSCode ? 9337 : 9336
 const codeProcess = spawn(
   code,
   [
@@ -114,18 +122,103 @@ try {
   })
   const table = frame.locator('.table-generator-table')
   await table.waitFor({ state: 'visible', timeout: 30_000 })
-  const caption = frame.locator('.table-generator-caption')
+  const caption = frame.locator('.ol-cm-caption-line')
   await caption.waitFor({ state: 'visible', timeout: 5_000 })
-  if ((await caption.textContent())?.trim() !== 'A test table.') {
+  if (!(await caption.textContent())?.includes('A test table.')) {
     throw new Error('The visual table caption was not rendered')
   }
+  const label = frame.locator('.ol-cm-label-line')
+  await label.waitFor({ state: 'visible', timeout: 5_000 })
+  if (!(await label.textContent())?.includes('tab:test')) {
+    throw new Error('The visual table label was not rendered')
+  }
+  await caption.click()
+  await window.keyboard.press('End')
+  await window.keyboard.type(' edited')
+  if (!(await frame.locator('.ol-cm-caption-line').textContent())?.includes('edited')) {
+    throw new Error('The visual table caption was not editable')
+  }
+  await window.keyboard.press('Control+z')
   const cells = table.locator('tbody .table-generator-cell')
+
+  const mathCell = cells.nth(1)
+  await mathCell.locator('mjx-container').waitFor({ timeout: 10_000 })
+  await mathCell.click()
+  await mathCell.locator('textarea').press('Escape')
+  await mathCell.locator('mjx-container').waitFor({ timeout: 10_000 })
 
   await cells.first().click()
   await frame
     .locator('.table-generator-floating-toolbar')
     .waitFor({ state: 'visible', timeout: 5_000 })
+  const toolbarIcons = frame.locator(
+    '.table-generator-floating-toolbar .material-symbols'
+  )
+  await toolbarIcons.first().waitFor({ state: 'visible', timeout: 5_000 })
+  const iconRendering = await toolbarIcons.evaluateAll(elements => ({
+    fontLoaded: document.fonts.check('20px "Material Symbols Rounded"'),
+    fontFamilies: elements.map(
+      element => getComputedStyle(element).fontFamily
+    ),
+    widths: elements.map(element => element.getBoundingClientRect().width),
+  }))
+  if (
+    !iconRendering.fontLoaded ||
+    iconRendering.fontFamilies.some(
+      family => !family.includes('Material Symbols Rounded')
+    ) ||
+    iconRendering.widths.some(width => width > 32)
+  ) {
+    throw new Error(
+      `Table toolbar Material Symbols did not render correctly: ${JSON.stringify(iconRendering)}`
+    )
+  }
+  if (process.env.TABLE_HANDLING_SCREENSHOT) {
+    await frame.locator('.table-generator-floating-toolbar').screenshot({
+      path: process.env.TABLE_HANDLING_SCREENSHOT,
+    })
+  }
   await cells.first().locator('textarea').press('Escape')
+  if ((await frame.locator('#table-generator-show-help').count()) !== 0) {
+    throw new Error('Table toolbar still contains the removed Help button')
+  }
+  await frame.locator('#table-generator-caption-dropdown').click()
+  const captionAboveOption = frame.locator('#table-generator-caption-above')
+  const captionOptionReceivesPointer = await captionAboveOption.evaluate(
+    element => {
+      const rect = element.getBoundingClientRect()
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2
+      )
+      return hit !== null && element.contains(hit)
+    }
+  )
+  if (!captionOptionReceivesPointer) {
+    throw new Error('Table menu item is clipped or blocked from pointer input')
+  }
+  await captionAboveOption.click()
+  await frame.locator('.table-generator-table').waitFor({
+    state: 'visible',
+    timeout: 10_000,
+  })
+  await window.keyboard.press('Control+S')
+  await waitForCaptionPosition(fixture, 'above', 15_000)
+
+  const tableAfterCaptionMove = frame.locator('.table-generator-table')
+  const cellsAfterCaptionMove = tableAfterCaptionMove.locator(
+    'tbody .table-generator-cell'
+  )
+  await cellsAfterCaptionMove.first().click()
+  await cellsAfterCaptionMove.first().locator('textarea').press('Escape')
+  await frame.locator('#table-generator-caption-dropdown').click()
+  await frame.locator('#table-generator-caption-below').click()
+  await frame.locator('.table-generator-table').waitFor({
+    state: 'visible',
+    timeout: 10_000,
+  })
+  await window.keyboard.press('Control+S')
+  await waitForCaptionPosition(fixture, 'below', 15_000)
 
   await selectCell(cells.first())
   await cells.first().press('Control+C')
@@ -145,6 +238,12 @@ try {
   await window.keyboard.press('Escape')
 
   await frame.locator('[data-column-selector="0"]').click({ force: true })
+  await frame.locator('#format_text_wrap').click()
+  await frame.locator('#table-generator-wrap-text').click()
+  const widthDialog = frame.locator('.table-generator-width-modal')
+  await widthDialog.waitFor({ state: 'visible', timeout: 5_000 })
+  await widthDialog.locator('button', { hasText: 'Cancel' }).click()
+  await widthDialog.waitFor({ state: 'hidden', timeout: 5_000 })
   await table.scrollIntoViewIfNeeded()
   const scrollTopBeforeAction = await frame
     .locator('.cm-scroller')
@@ -200,6 +299,24 @@ try {
   await window.keyboard.press('Control+S')
   await waitForSourceText(fixture, '\\begin{tabular}{lc}', 15_000)
 
+  const sourceBeforeColumnDelete = await readFile(fixture, 'utf8')
+  await frame.locator('[data-column-selector="1"]').click({ force: true })
+  await frame.locator('[data-column-selector="1"]').press('Delete')
+  const scrollTopBeforeUndo = await frame
+    .locator('.cm-scroller')
+    .evaluate(element => element.scrollTop)
+  await window.keyboard.press('Control+z')
+  await waitForExactSource(fixture, sourceBeforeColumnDelete, 10_000)
+  await frame.waitForTimeout(500)
+  const scrollTopAfterUndo = await frame
+    .locator('.cm-scroller')
+    .evaluate(element => element.scrollTop)
+  if (Math.abs(scrollTopAfterUndo - scrollTopBeforeUndo) > 5) {
+    throw new Error(
+      `Undoing a keyboard table deletion moved the editor viewport (${scrollTopBeforeUndo} -> ${scrollTopAfterUndo})`
+    )
+  }
+
   const tableTrigger = frame.locator('#toolbar-table')
   await tableTrigger.click()
   const sizePopup = frame.locator('#toolbar-table-menu')
@@ -231,7 +348,7 @@ try {
   }
 
   console.log(
-    'Table generator grid, caption, options, Ctrl+C, structural Delete, menu insertion, expansion, and scroll preservation passed.'
+    'Table math restoration, responsive toolbar buttons/dialogs, generator grid, caption, Ctrl+C, structural Delete and undo, menu insertion, expansion, and scroll preservation passed.'
   )
 } finally {
   await browser.close()
@@ -284,4 +401,30 @@ async function waitForSourceText(file, expected, timeout) {
     await new Promise(resolve => setTimeout(resolve, 250))
   }
   throw new Error(`Source did not contain ${expected}`)
+}
+
+async function waitForExactSource(file, expected, timeout) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    if ((await readFile(file, 'utf8')) === expected) return
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  throw new Error('Source was not restored after undo')
+}
+
+async function waitForCaptionPosition(file, expected, timeout) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    const source = await readFile(file, 'utf8')
+    const caption = source.indexOf('\\caption{A test table.}')
+    const tabularStart = source.indexOf('\\begin{tabular}')
+    const tabularEnd = source.indexOf('\\end{tabular}')
+    const matches =
+      expected === 'above'
+        ? caption >= 0 && caption < tabularStart
+        : caption > tabularEnd
+    if (matches) return
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  throw new Error(`Caption did not move ${expected}`)
 }

@@ -21,7 +21,7 @@ import {
   unfoldAllComments,
   unfoldAllExceptSelected,
 } from './folding'
-import { LaTeXLanguage } from './overleaf-editor/languages/latex/latex-language'
+import { LaTeXLanguage } from './visual-editor/languages/latex/latex-language'
 
 const source = String.raw`\documentclass{article}
 \begin{document}
@@ -137,3 +137,4 @@ describe('visual-editor folding commands', () => {
     return count
   }
 })
+

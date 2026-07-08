@@ -25,7 +25,13 @@ const builds = [
     outfile: 'dist/webview.js',
     platform: 'browser',
     format: 'iife',
-    loader: { '.css': 'css', '.mjs': 'js' },
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(
+        watch ? 'development' : 'production'
+      ),
+    },
+    loader: { '.css': 'css', '.mjs': 'js', '.woff2': 'file' },
+    assetNames: 'fonts/[name]',
   },
 ]
 

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 describe('table generator theme', () => {
   it('uses webview theme colors for light-mode cell selection', () => {
     const source = readFileSync(
-      'src/webview/overleaf-editor/extensions/visual/table-generator.ts',
+      'src/webview/visual-editor/extensions/visual/table-generator.ts',
       'utf8'
     )
 
@@ -15,3 +15,4 @@ describe('table generator theme', () => {
     )
   })
 })
+

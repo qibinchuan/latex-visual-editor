@@ -1,4 +1,5 @@
 import * as crypto from 'node:crypto'
+import { cacheBustAssetUri } from './webviewAssets'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import type {
@@ -518,12 +519,13 @@ export class LatexVisualEditorProvider implements vscode.CustomTextEditorProvide
    * Creates a CSP-restricted webview document.
    */
   private createWebviewHtml(webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(
+    const cacheKey = crypto.randomUUID()
+    const scriptUri = cacheBustAssetUri(webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview.js')
-    )
-    const styleUri = webview.asWebviewUri(
+    ).toString(), cacheKey)
+    const styleUri = cacheBustAssetUri(webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview.css')
-    )
+    ).toString(), cacheKey)
     const mathJaxUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this.context.extensionUri,

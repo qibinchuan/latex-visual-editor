@@ -30,7 +30,7 @@ export type CellData = {
   }
 }
 
-type RowData = {
+export type RowData = {
   cells: CellData[]
   borderTop: number
   borderBottom: number
