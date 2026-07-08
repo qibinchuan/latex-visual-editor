@@ -35,47 +35,47 @@ import type {
 } from '../shared/messages'
 import { findMinimalTextChange } from '../shared/textChange'
 import type { PreviewPath } from './adapters/previewPath'
-import { LaTeXLanguage } from './overleaf-editor/languages/latex/latex-language'
+import { LaTeXLanguage } from './visual-editor/languages/latex/latex-language'
 import {
   editFigureData,
   figureModal,
-} from './overleaf-editor/extensions/figure-modal'
-import { toggleRanges } from './overleaf-editor/commands/ranges'
+} from './visual-editor/extensions/figure-modal'
+import { toggleRanges } from './visual-editor/commands/ranges'
 import {
   toggleListForRanges,
-} from './overleaf-editor/extensions/toolbar/lists'
-import { setSectionHeadingLevel } from './overleaf-editor/extensions/toolbar/sections'
+} from './visual-editor/extensions/toolbar/lists'
+import { setSectionHeadingLevel } from './visual-editor/extensions/toolbar/sections'
 import {
   atomicDecorations,
   refreshAtomicDecorations,
-} from './overleaf-editor/extensions/visual/atomic-decorations'
-import { highlightCurrentLineNumber } from './overleaf-editor/extensions/visual/current-line-number'
-import { listItemMarker } from './overleaf-editor/extensions/visual/list-item-marker'
-import { markDecorations } from './overleaf-editor/extensions/visual/mark-decorations'
-import { visualLineNumbers } from './overleaf-editor/extensions/visual/line-numbers'
-import { pasteHtml } from './overleaf-editor/extensions/visual/paste-html'
-import { mousedown } from './overleaf-editor/extensions/visual/selection'
-import { tableGeneratorTheme } from './overleaf-editor/extensions/visual/table-generator'
+} from './visual-editor/extensions/visual/atomic-decorations'
+import { highlightCurrentLineNumber } from './visual-editor/extensions/visual/current-line-number'
+import { listItemMarker } from './visual-editor/extensions/visual/list-item-marker'
+import { markDecorations } from './visual-editor/extensions/visual/mark-decorations'
+import { visualLineNumbers } from './visual-editor/extensions/visual/line-numbers'
+import { pasteHtml } from './visual-editor/extensions/visual/paste-html'
+import { mousedown } from './visual-editor/extensions/visual/selection'
+import { tableGeneratorTheme } from './visual-editor/extensions/visual/table-generator'
 import {
   visualHighlightStyle,
   visualTheme,
-} from './overleaf-editor/extensions/visual/visual-theme'
+} from './visual-editor/extensions/visual/visual-theme'
 import {
   overleafKeymap,
   visualKeymap,
-} from './overleaf-editor/extensions/visual/visual-keymap'
+} from './visual-editor/extensions/visual/visual-keymap'
 import { showContentWhenParsed } from './showContentWhenParsed'
 import { latexAutocomplete } from './latexAutocomplete'
-import { findCurrentSectionHeadingLevel } from './overleaf-editor/extensions/toolbar/sections'
-import { ancestorListType } from './overleaf-editor/extensions/toolbar/lists'
-import { withinFormattingCommand } from './overleaf-editor/utils/tree-operations/formatting'
-import { bracketMatching } from './overleaf-editor/extensions/bracket-matching'
-import { mathPreview } from './overleaf-editor/extensions/math-preview'
-import { autoPair } from './overleaf-editor/extensions/auto-pair'
+import { findCurrentSectionHeadingLevel } from './visual-editor/extensions/toolbar/sections'
+import { ancestorListType } from './visual-editor/extensions/toolbar/lists'
+import { withinFormattingCommand } from './visual-editor/utils/tree-operations/formatting'
+import { bracketMatching } from './visual-editor/extensions/bracket-matching'
+import { mathPreview } from './visual-editor/extensions/math-preview'
+import { autoPair } from './visual-editor/extensions/auto-pair'
 import {
   editorTheme,
   themeClassHighlighter,
-} from './overleaf-editor/themes/cm6'
+} from './visual-editor/themes/cm6'
 import {
   createFoldingRangeFromSelection,
   foldAllCode,
@@ -1248,3 +1248,4 @@ const phrases: Record<string, string> = {
 }
 
 vscode.postMessage({ type: 'ready' })
+

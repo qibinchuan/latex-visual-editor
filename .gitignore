@@ -6,5 +6,5 @@ examples/
 AGENTS.md
 *.vsix
 coverage/
-src/webview/overleaf-editor/lezer-latex/latex.mjs
-src/webview/overleaf-editor/lezer-latex/latex.terms.mjs
+src/webview/visual-editor/lezer-latex/latex.mjs
+src/webview/visual-editor/lezer-latex/latex.terms.mjs

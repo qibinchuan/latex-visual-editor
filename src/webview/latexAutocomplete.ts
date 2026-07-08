@@ -8,13 +8,13 @@ import {
 import { EditorSelection } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import type { WorkspaceMetadata } from '../shared/messages'
-import { bibliographyStyles } from './overleaf-editor/languages/latex/completions/data/bibliography-styles'
-import { classNames } from './overleaf-editor/languages/latex/completions/data/class-names'
-import { environments } from './overleaf-editor/languages/latex/completions/data/environments'
-import { packageNames } from './overleaf-editor/languages/latex/completions/data/package-names'
-import extraSnippets from './overleaf-editor/languages/latex/completions/data/snippets'
-import topHundredSnippets from './overleaf-editor/languages/latex/completions/data/top-hundred-snippets'
-import { LaTeXLanguage } from './overleaf-editor/languages/latex/latex-language'
+import { bibliographyStyles } from './visual-editor/languages/latex/completions/data/bibliography-styles'
+import { classNames } from './visual-editor/languages/latex/completions/data/class-names'
+import { environments } from './visual-editor/languages/latex/completions/data/environments'
+import { packageNames } from './visual-editor/languages/latex/completions/data/package-names'
+import extraSnippets from './visual-editor/languages/latex/completions/data/snippets'
+import topHundredSnippets from './visual-editor/languages/latex/completions/data/top-hundred-snippets'
+import { LaTeXLanguage } from './visual-editor/languages/latex/latex-language'
 
 type MetadataProvider = () => WorkspaceMetadata
 
@@ -271,3 +271,4 @@ function openEnvironmentNames(context: CompletionContext): string[] {
   }
   return open
 }
+

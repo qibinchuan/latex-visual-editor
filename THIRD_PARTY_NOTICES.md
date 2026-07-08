@@ -1,7 +1,7 @@
 # Third-Party Notices
 
 This project contains adapted portions of the Overleaf Community Edition web
-frontend, primarily under `src/webview/overleaf-editor`. Overleaf Community
+frontend, primarily under `src/webview/visual-editor`. Overleaf Community
 Edition is distributed under the GNU Affero General Public License. The files
 in this repository have been modified to run locally inside a VS Code webview.
 
@@ -10,10 +10,10 @@ Upstream project:
 - https://github.com/overleaf/overleaf
 
 The LaTeX parser under
-`src/webview/overleaf-editor/lezer-latex` is based on Overleaf's Lezer-LaTeX
+`src/webview/visual-editor/lezer-latex` is based on Overleaf's Lezer-LaTeX
 parser and is distributed as part of this AGPL-3.0-only work.
 
-`src/webview/overleaf-editor/utils/prepare-lines.ts` contains code adapted from
+`src/webview/visual-editor/utils/prepare-lines.ts` contains code adapted from
 CodeMirror's autocomplete package under the MIT License. Its source attribution
 is retained in that file.
 
@@ -25,3 +25,4 @@ The complete corresponding source and build scripts for the extension are
 provided in this repository:
 
 - https://github.com/cyndigan/latex-visual-editor
+
