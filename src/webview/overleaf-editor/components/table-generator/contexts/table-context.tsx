@@ -18,8 +18,6 @@ export type TableContextValue = {
   tabularNode: SyntaxNode
   tableNode: SyntaxNode | null
   directTableChild: boolean
-  captionSource?: string
-  captionAbove: boolean
 }
 
 const TableContext = createContext<TableContextValue | null>(null)

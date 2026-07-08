@@ -184,15 +184,6 @@ body {
   white-space: pre-wrap;
 }
 
-.table-generator-caption {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 8px 10%;
-  text-align: center;
-  font-family: var(--visual-font-family);
-  user-select: text;
-}
-
 .table-generator-cell-input {
   display: block;
   box-sizing: border-box;

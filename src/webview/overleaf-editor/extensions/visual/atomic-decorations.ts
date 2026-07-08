@@ -155,57 +155,12 @@ function decorateArgumentBraces(
 const hasClosingBrace = (node: SyntaxNode) =>
   node.getChild('EnvNameGroup')?.getChild('CloseBrace')
 
-const TABLE_WRAPPER_COMMANDS = new Set([
-  '\\adjustbox',
-  '\\resizebox',
-  '\\scalebox',
-])
-
-const tableFormattingCommandBefore = (
-  state: EditorState,
-  from: number
-): number => {
-  const lookBehindFrom = Math.max(0, from - 500)
-  const prefix = state.sliceDoc(lookBehindFrom, from)
-  const match = prefix.match(
-    /(?:\s|%[^\n\r]*(?:\r?\n)?)*\\renewcommand\s*\{\\arraystretch\}\s*\{[^{}]*\}\s*$/
-  )
-
-  return match ? lookBehindFrom + match.index! : from
-}
-
 const commandName = (node: SyntaxNode, state: EditorState) => {
   const ctrlSeq = node
     .getChild('UnknownCommand')
     ?.getChild('CtrlSeq')
 
   return ctrlSeq ? state.sliceDoc(ctrlSeq.from, ctrlSeq.to).trim() : undefined
-}
-
-export const tableDecorationRange = (
-  tabularNode: SyntaxNode,
-  state: EditorState,
-  tableNode: SyntaxNode | null
-) => {
-  const range = {
-    from: (tableNode ?? tabularNode).from,
-    to: (tableNode ?? tabularNode).to,
-  }
-
-  let parent = tabularNode.parent
-  while (parent && !parent.type.is('TableEnvironment')) {
-    if (
-      parent.type.is('Command') &&
-      TABLE_WRAPPER_COMMANDS.has(commandName(parent, state) ?? '')
-    ) {
-      range.from = parent.from
-      range.to = parent.to
-    }
-    parent = parent.parent
-  }
-
-  range.from = tableFormattingCommandBefore(state, range.from)
-  return range
 }
 
 /**
@@ -333,10 +288,7 @@ export const atomicDecorations = (options: Options) => {
                 to: endLine.to,
               }
 
-              if (
-                envName !== 'table' &&
-                shouldDecorate(state, { from: begin.from, to: end.to })
-              ) {
+              if (shouldDecorate(state, { from: begin.from, to: end.to })) {
                 decorations.push(
                   Decoration.replace({
                     widget: new EnvironmentLineWidget(envName, 'begin'),
@@ -412,12 +364,7 @@ export const atomicDecorations = (options: Options) => {
                 tabularNode,
                 'TableEnvironment'
               )
-            const decorationRange = tableDecorationRange(
-              tabularNode,
-              state,
-              tableNode
-            )
-            if (shouldDecorate(state, decorationRange)) {
+            if (shouldDecorate(state, nodeRef)) {
               const directChild = isDirectChildOfEnvironment(
                 tabularNode.parent,
                 tableNode
@@ -439,14 +386,14 @@ export const atomicDecorations = (options: Options) => {
                       parsedTableData,
                       tabularNode,
                       state.doc.sliceString(
-                        decorationRange.from,
-                        decorationRange.to
+                        (tableNode ?? tabularNode).from,
+                        (tableNode ?? tabularNode).to
                       ),
                       tableNode,
                       directChild
                     ),
                     block: true,
-                  }).range(decorationRange.from, decorationRange.to)
+                  }).range(nodeRef.from, nodeRef.to)
                 )
                 return false
               } else {

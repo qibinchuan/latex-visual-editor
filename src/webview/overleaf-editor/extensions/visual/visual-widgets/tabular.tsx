@@ -32,20 +32,6 @@ export class TabularWidget extends WidgetType {
     const environment = this.tableNode
       ? parseTableEnvironment(this.tableNode)
       : undefined
-    let captionArgument: SyntaxNode | null = null
-    this.tableNode?.cursor().iterate(nodeRef => {
-      if (!nodeRef.type.is('Caption')) return
-      captionArgument = nodeRef.node.getChild('TextArgument')
-      return false
-    })
-    const argument = captionArgument as SyntaxNode | null
-    const captionSource = argument
-      ? view.state.sliceDoc(argument.from + 1, argument.to - 1)
-      : undefined
-    const captionAbove =
-      Boolean(environment?.caption) &&
-      environment!.caption!.from < positions.tabular.from
-
     flushSync(() => {
       root.render(
         <Tabular
@@ -58,8 +44,6 @@ export class TabularWidget extends WidgetType {
           tabularNode={this.tabularNode}
           tableNode={this.tableNode}
           directTableChild={this.isDirectChildOfTableEnvironment}
-          captionSource={captionSource}
-          captionAbove={captionAbove}
         />
       )
     })

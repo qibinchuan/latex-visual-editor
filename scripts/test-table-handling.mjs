@@ -122,11 +122,23 @@ try {
   })
   const table = frame.locator('.table-generator-table')
   await table.waitFor({ state: 'visible', timeout: 30_000 })
-  const caption = frame.locator('.table-generator-caption')
+  const caption = frame.locator('.ol-cm-caption-line')
   await caption.waitFor({ state: 'visible', timeout: 5_000 })
-  if ((await caption.textContent())?.trim() !== 'A test table.') {
+  if (!(await caption.textContent())?.includes('A test table.')) {
     throw new Error('The visual table caption was not rendered')
   }
+  const label = frame.locator('.ol-cm-label-line')
+  await label.waitFor({ state: 'visible', timeout: 5_000 })
+  if (!(await label.textContent())?.includes('tab:test')) {
+    throw new Error('The visual table label was not rendered')
+  }
+  await caption.click()
+  await window.keyboard.press('End')
+  await window.keyboard.type(' edited')
+  if (!(await frame.locator('.ol-cm-caption-line').textContent())?.includes('edited')) {
+    throw new Error('The visual table caption was not editable')
+  }
+  await window.keyboard.press('Control+z')
   const cells = table.locator('tbody .table-generator-cell')
 
   const mathCell = cells.nth(1)

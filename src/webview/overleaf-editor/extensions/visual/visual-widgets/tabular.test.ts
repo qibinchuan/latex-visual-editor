@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { act } from 'react'
 import { readFileSync } from 'node:fs'
 import { EditorState } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
+import { LaTeXLanguage } from '../../../languages/latex/latex-language'
 import { parser } from '../../../lezer-latex/latex.mjs'
 import {
   generateTable,
@@ -11,7 +13,8 @@ import {
 } from '../../../components/table-generator/utils'
 import { TableData } from '../../../components/table-generator/table-model'
 import { TabularWidget, renderTableCellContent } from './tabular'
-import { tableDecorationRange } from '../atomic-decorations'
+import { atomicDecorations } from '../atomic-decorations'
+import { markDecorations } from '../mark-decorations'
 
 ;(
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -425,55 +428,6 @@ describe('TabularWidget', () => {
     act(() => widget.destroy(dom))
   })
 
-  it.each(['above', 'below'] as const)(
-    'renders a rich caption %s the visual table',
-    position => {
-      const caption = String.raw`\caption{A \textbf{bold} caption}`
-      const tabular = String.raw`\begin{tabular}{l}
-A\\
-\end{tabular}`
-      const source = String.raw`\begin{table}
-${position === 'above' ? `${caption}\n${tabular}` : `${tabular}\n${caption}`}
-\end{table}`
-      const state = EditorState.create({ doc: source })
-      let tableNode: SyntaxNode | undefined
-      let tabularNode: SyntaxNode | undefined
-      parser.parse(source).iterate({
-        enter(node) {
-          if (node.type.name === 'TableEnvironment' && !tableNode) {
-            tableNode = node.node
-          }
-          if (node.type.name === 'TabularEnvironment' && !tabularNode) {
-            tabularNode = node.node
-          }
-        },
-      })
-      const widget = new TabularWidget(
-        generateTable(tabularNode!, state),
-        tabularNode!,
-        source,
-        tableNode!,
-        true
-      )
-      const dom = widget.toDOM({
-        dispatch() {},
-        requestMeasure() {},
-        state,
-      } as never)
-      document.body.append(dom)
-
-      const captionElement = dom.querySelector('.table-generator-caption')
-      const tableElement = dom.querySelector('.table-generator-table')
-      expect(captionElement?.textContent).toBe('A bold caption')
-      expect(captionElement?.querySelector('b')?.textContent).toBe('bold')
-      const children = [...dom.children]
-      expect(
-        children.indexOf(captionElement!) < children.indexOf(tableElement!)
-      ).toBe(position === 'above')
-      act(() => widget.destroy(dom))
-    }
-  )
-
   it('moves a caption above and below through the toolbar', () => {
     const moveThroughToolbar = (
       source: string,
@@ -756,26 +710,54 @@ CWRU & 1999 & Artificial bearing faults & Vibration & Widely cited dataset\\
     expect(parsed.table.rows).toHaveLength(2)
   })
 
-  it('hides table-only wrapper commands with the visual table', () => {
-    const source = String.raw`\renewcommand{\arraystretch}{1.4}
+})
+
+describe('visual table source boundaries', () => {
+  let view: EditorView | undefined
+
+  afterEach(() => view?.destroy())
+
+  it('keeps captions, labels, and modifier commands visible and editable', () => {
+    const source = String.raw`Intro paragraph.
+
+\begin{table}
+\centering
 \resizebox{\textwidth}{!}{
 \begin{tabular}{ll}
 A & B\\
 \end{tabular}
-}`
-    const state = EditorState.create({ doc: source })
-    let tabularNode: SyntaxNode | undefined
-    parser.parse(source).iterate({
-      enter(node) {
-        if (node.type.name === 'TabularEnvironment' && !tabularNode) {
-          tabularNode = node.node
-        }
+}
+\caption{Original caption}
+\label{tab:visible}
+\end{table}`
+    view = new EditorView({
+      doc: source,
+      parent: document.body,
+      extensions: [
+        LaTeXLanguage,
+        markDecorations,
+        atomicDecorations({ previewByPath: () => null }),
+      ],
+    })
+
+    expect(view.dom.querySelector('.table-generator-table')).not.toBeNull()
+    expect(view.dom.querySelector('.table-generator-caption')).toBeNull()
+    expect(view.dom.textContent).not.toContain('\\begin{table}')
+    expect(view.dom.textContent).not.toContain('\\end{table}')
+    expect(view.dom.textContent).toContain('resizebox')
+    expect(view.dom.textContent).toContain('Original caption')
+    expect(view.dom.textContent).toContain('tab:visible')
+
+    const captionFrom = source.indexOf('Original caption')
+    view.dispatch({
+      changes: {
+        from: captionFrom,
+        to: captionFrom + 'Original caption'.length,
+        insert: 'Edited caption',
       },
     })
 
-    expect(tableDecorationRange(tabularNode!, state, null)).toEqual({
-      from: 0,
-      to: source.length,
-    })
+    expect(view.state.doc.toString()).toContain('\\caption{Edited caption}')
+    expect(view.dom.textContent).toContain('Edited caption')
   })
 })

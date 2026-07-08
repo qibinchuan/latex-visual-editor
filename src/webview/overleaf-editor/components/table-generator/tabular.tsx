@@ -6,13 +6,11 @@ import type { TablePositions } from './table-commands'
 import {
   TableProvider,
   type TableEnvironmentData,
-  useTableContext,
 } from './contexts/table-context'
 import { TableInteractionProvider } from './contexts/interaction-context'
 import { TableUIProvider, useTableUI } from './contexts/ui-context'
 import { Toolbar } from './toolbar/toolbar'
 import { Table } from './table'
-import { Caption } from './caption'
 import { TableDialogs } from './dialogs'
 
 export type TabularProps = {
@@ -23,8 +21,6 @@ export type TabularProps = {
   tabularNode: SyntaxNode
   tableNode: SyntaxNode | null
   directTableChild: boolean
-  captionSource?: string
-  captionAbove: boolean
   host: HTMLDivElement
 }
 
@@ -46,7 +42,6 @@ function TabularBody({
 }: {
   wrapperRef: React.RefObject<HTMLDivElement | null>
 }) {
-  const { captionSource, captionAbove } = useTableValueForLayout()
   const { closeMenu } = useTableUI()
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -60,14 +55,8 @@ function TabularBody({
   return (
     <>
       <Toolbar />
-      {captionSource !== undefined && captionAbove && <Caption />}
       <Table />
-      {captionSource !== undefined && !captionAbove && <Caption />}
       <TableDialogs />
     </>
   )
-}
-
-function useTableValueForLayout() {
-  return useTableContext()
 }
