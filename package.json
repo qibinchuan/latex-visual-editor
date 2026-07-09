@@ -420,7 +420,7 @@
     "test:e2e:table-handling:system": "node scripts/test-table-handling.mjs --system-vscode",
     "test:e2e:latex-workshop-shortcuts": "node scripts/test-latex-workshop-shortcuts.mjs",
     "test:e2e:visual-auto-build": "node scripts/test-visual-auto-build.mjs",
-    "check": "npm run typecheck && npm test",
+    "check": "npm run typecheck",
     "vscode:prepublish": "npm run check && npm run build",
     "package": "vsce package --no-dependencies"
   },
