@@ -26,18 +26,18 @@ import {
   VISUAL_EDITOR_VIEW_TYPE,
 } from './extension/latexVisualEditorProvider'
 
-const MODE_KEY_PREFIX = 'latexVisualEditor.mode.'
-const CURRENT_MODE_KEY = 'latexVisualEditor.currentMode'
+const PREVIOUS_EDITOR_MODE_KEY = 'latexVisualEditor.previousEditorMode'
+type TexFileOpenMode = 'Previous editor' | 'Source editor' | 'Visual editor'
 
 /**
  * Activates commands and the custom text editor.
  */
 export function activate(context: vscode.ExtensionContext): void {
   const visualEditorProvider = new LatexVisualEditorProvider(context)
-  const reopening = new Set<string>()
   context.subscriptions.push(
     LatexVisualEditorProvider.register(context, visualEditorProvider)
   )
+  void syncTexEditorAssociation(context)
   void installReverseSyncTeXHandler(async (record, data) => {
     const uri = vscode.Uri.file(record.input)
     const visualPanel = visualEditorProvider.getPanel(uri)
@@ -77,7 +77,7 @@ export function activate(context: vscode.ExtensionContext): void {
         captureTextEditorViewState(sourceEditor)
       )
     }
-    await rememberMode(context, target, 'visual')
+    await recordEditorMode(context, 'visual')
     await replaceDocumentEditor(target, VISUAL_EDITOR_VIEW_TYPE)
   }
 
@@ -87,7 +87,7 @@ export function activate(context: vscode.ExtensionContext): void {
     await visualEditorProvider.syncActiveEditorState(target)
     const selection = getStoredEditorSelection(target)
     const viewState = getStoredViewState(context, target)
-    await rememberMode(context, target, 'source')
+    await recordEditorMode(context, 'source')
     await replaceDocumentEditor(target, 'default')
     const sourceEditor = vscode.window.activeTextEditor
     if (
@@ -188,13 +188,11 @@ export function activate(context: vscode.ExtensionContext): void {
       const target = document.uri
       const key = target.toString()
       await visualEditorProvider.syncActiveEditorState(target)
-      reopening.add(key)
       try {
         await replaceDocumentEditor(target, 'default')
         await vscode.commands.executeCommand('latex-workshop.view')
       } finally {
         await replaceDocumentEditor(target, VISUAL_EDITOR_VIEW_TYPE)
-        reopening.delete(key)
       }
     }),
     vscode.window.registerUriHandler({
@@ -225,20 +223,11 @@ export function activate(context: vscode.ExtensionContext): void {
   )
 
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(editor => {
-      if (!editor || editor.document.languageId !== 'latex') return
-      const rememberedMode = getRememberedMode(context, editor.document.uri)
-      if (rememberedMode !== 'visual') return
-
-      const key = editor.document.uri.toString()
-      if (reopening.has(key)) {
+    vscode.workspace.onDidChangeConfiguration(event => {
+      if (!event.affectsConfiguration('latexVisualEditor.openTexFilesIn')) {
         return
       }
-
-      reopening.add(key)
-      void Promise.resolve(
-        replaceDocumentEditor(editor.document.uri, VISUAL_EDITOR_VIEW_TYPE)
-      ).finally(() => reopening.delete(key))
+      void syncTexEditorAssociation(context)
     })
   )
 }
@@ -271,43 +260,55 @@ function locateReverseSyncPosition(
 }
 
 /**
- * Persists one file's selected editor mode.
+ * Records the current editor mode and applies the configured editor preference
+ * to the workspace association before future LaTeX files are opened.
  */
-async function rememberMode(
+async function recordEditorMode(
   context: vscode.ExtensionContext,
-  uri: vscode.Uri,
   mode: 'source' | 'visual'
 ): Promise<void> {
-  const configuration = vscode.workspace.getConfiguration('latexVisualEditor')
-  await Promise.all([
-    configuration.get<boolean>('rememberMode', true)
-      ? context.workspaceState.update(MODE_KEY_PREFIX + uri.toString(), mode)
-      : Promise.resolve(),
-    configuration.get<boolean>('persistToggleAcrossTexFiles', true)
-      ? context.workspaceState.update(CURRENT_MODE_KEY, mode)
-      : Promise.resolve(),
-  ])
+  await context.workspaceState.update(PREVIOUS_EDITOR_MODE_KEY, mode)
+  await syncTexEditorAssociation(context)
 }
 
-/**
- * Returns the editor mode to restore for a LaTeX file.
- */
-function getRememberedMode(
-  context: vscode.ExtensionContext,
-  uri: vscode.Uri
-): 'source' | 'visual' | undefined {
-  const configuration = vscode.workspace.getConfiguration('latexVisualEditor')
-  if (configuration.get<boolean>('persistToggleAcrossTexFiles', true)) {
-    const currentMode =
-      context.workspaceState.get<'source' | 'visual'>(CURRENT_MODE_KEY)
-    if (currentMode !== undefined) return currentMode
-  }
-  if (configuration.get<boolean>('rememberMode', true)) {
-    return context.workspaceState.get<'source' | 'visual'>(
-      MODE_KEY_PREFIX + uri.toString()
+/** Updates the workspace-level association without changing unrelated editors. */
+async function syncTexEditorAssociation(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  if (!vscode.workspace.workspaceFolders?.length) return
+
+  const preference = vscode.workspace
+    .getConfiguration('latexVisualEditor')
+    .get<TexFileOpenMode>('openTexFilesIn', 'Previous editor')
+  const previousMode = context.workspaceState.get<'source' | 'visual'>(
+    PREVIOUS_EDITOR_MODE_KEY,
+    'visual'
+  )
+  const mode =
+    preference === 'Previous editor'
+      ? previousMode
+      : preference === 'Source editor'
+        ? 'source'
+        : 'visual'
+  const configuration = vscode.workspace.getConfiguration('workbench')
+  const inspected = configuration.inspect<Record<string, string>>(
+    'editorAssociations'
+  )
+  const associations = { ...(inspected?.workspaceValue ?? {}) }
+  associations['*.tex'] = mode === 'visual' ? VISUAL_EDITOR_VIEW_TYPE : 'default'
+
+  try {
+    await configuration.update(
+      'editorAssociations',
+      associations,
+      vscode.ConfigurationTarget.Workspace
+    )
+  } catch (error) {
+    console.error('Failed to update LaTeX editor association', error)
+    void vscode.window.showWarningMessage(
+      'LaTeX Visual Editor could not save the editor mode to this workspace.'
     )
   }
-  return undefined
 }
 
 /**
