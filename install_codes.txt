@@ -1,1 +1,10 @@
+# 先清空旧的输出目录（可选，防止缓存干扰）
+rm -rf out dist || rmdir /s out dist   # 非必须
+
+# 执行编译（根据你的项目，选其一）
+npm run compile     # 方案一
+# 或
+npm run build       # 方案二
+
+# 最后打包
 vsce package --no-dependencies
