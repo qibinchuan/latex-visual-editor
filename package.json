@@ -23,7 +23,8 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onUri"
+    "onUri",
+    "onStartupFinished"
   ],
   "contributes": {
     "customEditors": [
@@ -376,15 +377,20 @@
           "default": "assets",
           "description": "Workspace-relative directory used when copying inserted images."
         },
-        "latexVisualEditor.rememberMode": {
-          "type": "boolean",
-          "default": true,
-          "description": "Remember visual mode separately for each LaTeX file in the workspace."
-        },
-        "latexVisualEditor.persistToggleAcrossTexFiles": {
-          "type": "boolean",
-          "default": true,
-          "description": "Apply the current source/visual toggle choice when opening other LaTeX files."
+        "latexVisualEditor.openTexFilesIn": {
+          "type": "string",
+          "default": "Previous editor",
+          "enum": [
+            "Previous editor",
+            "Source editor",
+            "Visual editor"
+          ],
+          "enumDescriptions": [
+            "Open LaTeX files in the editor used most recently.",
+            "Always open LaTeX files in the source editor.",
+            "Always open LaTeX files in the visual editor."
+          ],
+          "description": "Open .tex files in"
         },
         "latexVisualEditor.useOverleafKeybindings": {
           "type": "boolean",

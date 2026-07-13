@@ -49,6 +49,11 @@ export type ReverseSyncTeXRecord = {
 }
 
 type WorkshopRuntime = {
+  root: {
+    file: {
+      path?: string
+    }
+  }
   file: {
     toUri?: (file: string) => vscode.Uri
   }
@@ -72,11 +77,18 @@ type WorkshopRuntime = {
         data: ReverseSyncTeXData,
         pdfUri: vscode.Uri | string
       ): Promise<void>
-      components?: {
+      components: {
         computeToTeX(
           data: ReverseSyncTeXData,
           pdfUri: vscode.Uri
         ): Promise<ReverseSyncTeXRecord | undefined>
+        synctexToPDFCombined(
+          line: number,
+          column: number,
+          filePath: string,
+          pdfUri: vscode.Uri,
+          indicator: SyncTeXIndicator
+        ): Promise<SyncTeXRecord | SyncTeXRangeRecord[]>
       }
     }
   }
@@ -146,41 +158,30 @@ export async function syncTeXWithLatexWorkshop(
   document: vscode.TextDocument,
   position: vscode.Position
 ): Promise<void> {
-  const rootFile = await findRootFile(document)
+  const runtime = await getWorkshopRuntime()
+  const rootFile = runtime.root.file.path ?? (await findRootFile(document))
   const configuration = vscode.workspace.getConfiguration(
     'latex-workshop',
     document.uri
   )
   const pdfFile = getPdfPath(rootFile, configuration)
-  const command = configuration.get<string>('synctex.path', 'synctex')
   const indicator = configuration.get<SyncTeXIndicator>(
     'synctex.indicator',
     'rectangle'
   )
-  const column =
-    indicator === 'rectangle' ? 0 : position.character + 1
-
-  // Running SyncTeX first verifies that the requested visual position exists
-  // in the generated synchronization data before opening the viewer.
-  const { stdout } = await execFileAsync(
-    command,
-    [
-      'view',
-      '-i',
-      `${position.line + 1}:${column}:${document.fileName}`,
-      '-o',
-      pdfFile,
-    ],
-    { cwd: path.dirname(pdfFile) }
-  )
-  const record =
-    indicator === 'rectangle'
-      ? parseSyncTeXRangeRecords(stdout)
-      : parseSyncTeXRecord(stdout, indicator !== 'none')
-  const runtime = await getWorkshopRuntime()
+  const line = position.line + 1
   const viewerPdf = runtime.file.toUri
     ? runtime.file.toUri(pdfFile)
     : pdfFile
+  const workshopPdf =
+    viewerPdf instanceof vscode.Uri ? viewerPdf : vscode.Uri.file(viewerPdf)
+  const record = await runtime.locate.synctex.components.synctexToPDFCombined(
+    line,
+    position.character,
+    document.fileName,
+    workshopPdf,
+    indicator
+  )
   await runtime.viewer.locate(viewerPdf, record)
 }
 
@@ -230,22 +231,29 @@ async function getWorkshopRuntime(): Promise<WorkshopRuntime> {
     }
     const runtime = (module?.exports as { lw?: unknown } | undefined)?.lw as
       | {
+          root?: { file?: unknown }
           file?: { toUri?: unknown }
           viewer?: { locate?: unknown }
           log?: unknown
           locate?: {
             synctex?: {
               toTeX?: unknown
-              components?: { computeToTeX?: unknown }
+              components?: {
+                computeToTeX?: unknown
+                synctexToPDFCombined?: unknown
+              }
             }
           }
         }
       | undefined
     if (
+      runtime?.root?.file &&
       runtime?.file &&
       typeof runtime.viewer?.locate === 'function' &&
       typeof runtime.log === 'function' &&
-      typeof runtime.locate?.synctex?.toTeX === 'function'
+      typeof runtime.locate?.synctex?.toTeX === 'function' &&
+      typeof runtime.locate.synctex.components?.synctexToPDFCombined ===
+        'function'
     ) {
       return runtime as WorkshopRuntime
     }
@@ -392,73 +400,6 @@ function replacePlaceholders(
       result.replaceAll(placeholder, replacement),
     value
   )
-}
-
-function parseSyncTeXRecord(
-  value: string,
-  indicator = true
-): SyncTeXRecord {
-  return {
-    page: readSyncTeXNumber(value, 'Page'),
-    x: readSyncTeXNumber(value, 'x'),
-    y: readSyncTeXNumber(value, 'y'),
-    indicator,
-  }
-}
-
-function parseSyncTeXRangeRecords(value: string): SyncTeXRangeRecord[] {
-  const records: SyncTeXRangeRecord[] = []
-  let current: SyncTeXRangeRecord | undefined
-  let started = false
-
-  for (const line of value.split(/\r?\n/)) {
-    if (line.includes('SyncTeX result begin')) {
-      started = true
-      continue
-    }
-    if (line.includes('SyncTeX result end')) break
-    if (!started) continue
-
-    const separator = line.indexOf(':')
-    if (separator < 0) continue
-    const key = line.slice(0, separator)
-    const parsed = Number(line.slice(separator + 1).trim())
-
-    if (key === 'Output') {
-      current = {
-        page: 0,
-        x: 0,
-        y: 0,
-        h: 0,
-        v: 0,
-        W: 0,
-        H: 0,
-        indicator: true,
-      }
-      records.push(current)
-    } else if (
-      current &&
-      Number.isFinite(parsed) &&
-      (key === 'Page' ||
-        key === 'x' ||
-        key === 'y' ||
-        key === 'h' ||
-        key === 'v' ||
-        key === 'W' ||
-        key === 'H')
-    ) {
-      if (key === 'Page') {
-        current.page = parsed
-      } else {
-        current[key] = parsed
-      }
-    }
-  }
-
-  if (records.length === 0) {
-    throw new Error('SyncTeX did not return a valid rectangular range.')
-  }
-  return records
 }
 
 function readSyncTeXNumber(value: string, key: string): number {
