@@ -2,7 +2,7 @@
   "name": "latex-visual-editor",
   "displayName": "LaTeX Visual Editor",
   "description": "A Visual LaTeX editor, inspired by Overleaf's visual editor.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "cyndigan",
   "license": "AGPL-3.0-only",
   "repository": {
@@ -441,6 +441,7 @@
     "@lezer/highlight": "^1.2.1",
     "@lezer/lr": "^1.4.2",
     "@overleaf/o-error": "^3.4.0",
+    "jsonc-parser": "^3.3.1",
     "lodash": "^4.17.21",
     "mathjax": "^4.1.2",
     "pdfjs-dist": "^4.10.38",
